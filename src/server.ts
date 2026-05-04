@@ -10,6 +10,7 @@ import { sendToGa4 } from './destinations/ga4.js'
 import { sendToMeta } from './destinations/meta.js'
 import { writeSanitizedEventLog } from './event-log.js'
 import {
+  advancedSettingsPage,
   dashboardPage,
   developerDocs,
   loginPage,
@@ -17,6 +18,7 @@ import {
   usageDocs,
 } from './html.js'
 import { createPixelScript } from './pixel-script.js'
+import { sanitizeRecordingChunkEvents } from './recording-sanitize.js'
 import { sanitizeIncomingEvent } from './sanitize.js'
 import { clearSessionCookie, createSessionCookie, requireSession } from './session.js'
 import { defaultSettings, parseCsv } from './settings.js'
@@ -115,17 +117,15 @@ app.get('/dashboard', async (request, response) => {
   const session = requireSession(request, response, config.appSecret)
   if (!session) return
 
-  const [settings, stats, audiences] = await Promise.all([
+  const [settings, stats] = await Promise.all([
     store.getSettings(),
     store.getStats(),
-    store.listAudienceRules(),
   ])
 
   response.type('html').send(
     dashboardPage({
       settings,
       stats,
-      audiences,
       publicBaseUrl: config.publicBaseUrl.replace(/\/$/, ''),
       destinations: destinationReadiness(effectiveDestinationConfig(config, settings)),
     }),
@@ -144,10 +144,48 @@ app.post('/settings/features', async (request, response) => {
       googleAnalytics: request.body.googleAnalytics === 'on',
       sessionRecording: request.body.sessionRecording === 'on',
       consentManager: request.body.consentManager === 'on',
-      audienceBuilder: request.body.audienceBuilder === 'on',
+      audienceBuilder: settings.features.audienceBuilder,
     },
   })
   response.redirect('/dashboard')
+})
+
+app.get('/settings/advanced', async (request, response) => {
+  const session = requireSession(request, response, config.appSecret)
+  if (!session) return
+
+  const [settings, stats, audiences] = await Promise.all([
+    store.getSettings(),
+    store.getStats(),
+    store.listAudienceRules(),
+  ])
+
+  response.type('html').send(
+    advancedSettingsPage({
+      settings,
+      stats,
+      audiences,
+    }),
+  )
+})
+
+app.post('/settings/audience-builder', async (request, response) => {
+  const session = requireSession(request, response, config.appSecret)
+  if (!session) return
+
+  const settings = await store.getSettings()
+  const requestedEnable = request.body.audienceBuilder === 'on'
+  const riskAccepted = request.body.audienceBuilderRiskAccepted === 'on'
+
+  await store.saveSettings({
+    ...settings,
+    features: {
+      ...settings.features,
+      audienceBuilder: requestedEnable && riskAccepted,
+    },
+  })
+
+  response.redirect('/settings/advanced')
 })
 
 app.post('/settings/policy', async (request, response) => {
@@ -169,6 +207,12 @@ app.post('/audiences', async (request, response) => {
   const session = requireSession(request, response, config.appSecret)
   if (!session) return
 
+  const settings = await store.getSettings()
+  if (!settings.features.audienceBuilder) {
+    response.redirect('/settings/advanced')
+    return
+  }
+
   const name = stringField(request.body.name).trim()
   if (name) {
     const minValue = Number(request.body.minValue)
@@ -179,7 +223,7 @@ app.post('/audiences', async (request, response) => {
       minValue: Number.isFinite(minValue) ? minValue : undefined,
     })
   }
-  response.redirect('/dashboard')
+  response.redirect('/settings/advanced')
 })
 
 app.get('/docs/usage', (_request, response) => {
@@ -336,7 +380,10 @@ app.post('/record', async (request, response) => {
     return
   }
 
-  await store.saveRecordingChunk(parsed.data)
+  await store.saveRecordingChunk({
+    ...parsed.data,
+    events: sanitizeRecordingChunkEvents(parsed.data.events),
+  })
   response.status(202).json({ accepted: true })
 })
 
@@ -406,7 +453,7 @@ function settingsFromSetupForm(body: Record<string, unknown>, config: RelayConfi
       googleAnalytics: body.googleAnalytics === 'on',
       sessionRecording: body.sessionRecording === 'on',
       consentManager: body.consentManager === 'on',
-      audienceBuilder: body.audienceBuilder === 'on',
+      audienceBuilder: false,
     },
   }
 }

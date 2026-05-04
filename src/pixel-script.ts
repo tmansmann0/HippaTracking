@@ -176,6 +176,57 @@ export function createPixelScript(config: RelayConfig) {
     }
   }
 
+  function redactRecordingText(value) {
+    var text = String(value || '')
+    return text
+      .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/gi, '[email]')
+      .replace(/(?:\\+?1[\\s.-]?)?(?:\\(?\\d{3}\\)?[\\s.-]?)\\d{3}[\\s.-]?\\d{4}/g, '[phone]')
+      .replace(/\\b\\d{3}-\\d{2}-\\d{4}\\b/g, '[ssn]')
+      .replace(/\\b(?:\\d[ -]*?){13,19}\\b/g, '[number]')
+      .replace(/\\b(?:dob|date of birth|birth date|ssn)\\s*[:#-]?\\s*[0-9/_.-]+/gi, '[redacted]')
+      .replace(/\\b(?:mrn|medical record|member id|patient id)\\s*[:#-]?\\s*[A-Z0-9_.-]+/gi, '[redacted]')
+      .replace(/\\b\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}\\b/g, '[date]')
+      .replace(/\\b\\d{1,6}\\s+[A-Z0-9][A-Z0-9.'\\s-]{1,80}\\s+(?:street|st|avenue|ave|road|rd|drive|dr|lane|ln|boulevard|blvd|court|ct|circle|cir|way|parkway|pkwy|place|pl)\\b/gi, '[address]')
+      .replace(/\\b(?:[Mm]r|[Mm]rs|[Mm]s|[Mm]iss|[Dd]r)\\.?\\s+[A-Z][a-z]+(?:\\s+[A-Z][a-z]+){0,2}\\b/g, '[name]')
+      .replace(/\\b\\d+(?:[.,]\\d+)?\\b/g, '[number]')
+  }
+
+  function redactRecordingInput(value) {
+    return value ? '[redacted-input]' : ''
+  }
+
+  function scrubRecordingEvent(value, key, depth) {
+    depth = depth || 0
+    key = key || ''
+    if (depth > 16) return '[redacted]'
+    if (typeof value === 'string') {
+      var normalizedKey = key.toLowerCase().replace(/[^a-z]/g, '')
+      if (
+        normalizedKey === 'value' ||
+        normalizedKey === 'input' ||
+        normalizedKey === 'inputvalue' ||
+        normalizedKey.indexOf('email') >= 0 ||
+        normalizedKey.indexOf('phone') >= 0 ||
+        normalizedKey.indexOf('address') >= 0 ||
+        normalizedKey.indexOf('birth') >= 0 ||
+        normalizedKey.indexOf('patient') >= 0 ||
+        normalizedKey.indexOf('medical') >= 0 ||
+        normalizedKey.indexOf('member') >= 0 ||
+        normalizedKey.indexOf('ssn') >= 0
+      ) return '[redacted]'
+      return redactRecordingText(value)
+    }
+    if (!value || typeof value !== 'object') return value
+    if (Array.isArray(value)) {
+      return value.map(function (item) { return scrubRecordingEvent(item, key, depth + 1) })
+    }
+    var next = {}
+    Object.keys(value).forEach(function (entryKey) {
+      next[entryKey] = scrubRecordingEvent(value[entryKey], entryKey, depth + 1)
+    })
+    return next
+  }
+
   function startRecordingIfAllowed() {
     if (!runtimeConfig || !runtimeConfig.features.sessionRecording || consent !== 'granted') return
     if (window.__hipaaTrackingRecordingStarted) return
@@ -185,11 +236,32 @@ export function createPixelScript(config: RelayConfig) {
       if (!window.rrweb || !window.rrweb.record) return
       window.rrweb.record({
         emit: function (event) {
-          recordingBuffer.push(event)
+          recordingBuffer.push(scrubRecordingEvent(event))
           scheduleRecordingFlush()
         },
         maskAllInputs: true,
-        maskTextSelector: '[data-ht-mask], input, textarea, select, [contenteditable=true]',
+        maskInputOptions: {
+          color: true,
+          date: true,
+          'datetime-local': true,
+          email: true,
+          month: true,
+          number: true,
+          range: true,
+          search: true,
+          tel: true,
+          text: true,
+          time: true,
+          url: true,
+          week: true,
+          textarea: true,
+          select: true,
+          password: true
+        },
+        maskInputFn: redactRecordingInput,
+        maskTextSelector: 'body',
+        maskTextFn: redactRecordingText,
+        blockSelector: '[data-ht-block], .ht-block, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [aria-multiline="true"]',
         blockClass: 'ht-block',
         ignoreClass: 'ht-ignore',
         collectFonts: false,

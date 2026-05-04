@@ -28,7 +28,8 @@ destinations.
 - Optional consent manager with server-side consent event logging.
 - Optional MIT-licensed rrweb session recording with input masking and encrypted
   chunks.
-- Optional audience builder that evaluates sanitized conversion events server-side.
+- Optional high-risk audience builder, isolated under advanced settings, that
+  evaluates sanitized conversion events server-side.
 - Guided first-run setup with admin email, password, recovery key, feature
   selection, collection policy, and installation snippet.
 - Defaults to `PRIVACY_MODE=strict`.
@@ -257,7 +258,8 @@ so this last step has to happen once in your Railway workspace.
 - GA4 Measurement Protocol is intended to supplement normal tagging, not replace
   all client-side collection.
 - Session recording uses rrweb under the MIT license and batches incremental DOM
-  events; it does not record video frames.
+  events; it masks editable fields, scrubs common PII/numbers in text, and does
+  not record video frames.
 - Recording chunks and consent payloads are encrypted before database storage.
 - Audience membership stores HMAC-pseudonymous client keys rather than raw
   browser client IDs.

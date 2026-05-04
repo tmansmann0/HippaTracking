@@ -35,9 +35,13 @@ export function layout(title: string, body: string) {
       .checks { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:8px; }
       .checks label { display:flex; align-items:center; gap:8px; margin:0; font-weight:650; }
       .checks input { width:auto; }
+      .warning { background:#fff7ed; border-color:#fed7aa; }
+      .danger { background:#fef2f2; border-color:#fecaca; }
+      .danger strong, .danger h2 { color:#991b1b; }
+      .inline-check { display:flex; align-items:flex-start; gap:8px; font-weight:700; }
+      .inline-check input { width:auto; margin-top:4px; }
       pre { background:#0b1020; color:#d1e7ff; padding:14px; border-radius:8px; overflow:auto; }
       code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-      .warning { background:#fff7ed; border-color:#fed7aa; }
       @media (max-width: 820px) { .grid, .stats { grid-template-columns: 1fr; } .top { align-items:flex-start; flex-direction:column; } }
     </style>
   </head>
@@ -105,8 +109,8 @@ export function setupPage(generatedRecoveryKey: string | null = null) {
           <label><input type="checkbox" name="googleAnalytics" value="on"> Google Analytics 4</label>
           <label><input type="checkbox" name="sessionRecording" value="on"> Session recording</label>
           <label><input type="checkbox" name="consentManager" value="on"> Consent manager</label>
-          <label><input type="checkbox" name="audienceBuilder" value="on"> Audience builder</label>
         </div>
+        <p class="muted">Audience building is hidden under advanced risk settings and starts disabled.</p>
         <p><button type="submit">Create relay</button></p>
       </form>
     </section>`,
@@ -131,7 +135,6 @@ export function loginPage(error = '') {
 export function dashboardPage(input: {
   settings: AppSettings
   stats: DashboardStats
-  audiences: AudienceRule[]
   publicBaseUrl: string
   destinations: Record<string, unknown>
 }) {
@@ -151,8 +154,6 @@ export function dashboardPage(input: {
     <section class="stats">
       <article class="card stat"><span class="muted">Consent events</span><strong>${input.stats.consentEvents}</strong></article>
       <article class="card stat"><span class="muted">Recording chunks</span><strong>${input.stats.recordingChunks}</strong></article>
-      <article class="card stat"><span class="muted">Audience rules</span><strong>${input.stats.audienceRules}</strong></article>
-      <article class="card stat"><span class="muted">Audience members</span><strong>${input.stats.audienceMembers}</strong></article>
     </section>
 
     <section class="grid">
@@ -164,11 +165,12 @@ export function dashboardPage(input: {
             ${featureCheckbox('googleAnalytics', 'Google Analytics 4', input.settings.features.googleAnalytics)}
             ${featureCheckbox('sessionRecording', 'Session recording', input.settings.features.sessionRecording)}
             ${featureCheckbox('consentManager', 'Consent manager', input.settings.features.consentManager)}
-            ${featureCheckbox('audienceBuilder', 'Audience builder', input.settings.features.audienceBuilder)}
           </div>
           <p><button type="submit">Save features</button></p>
         </form>
         <p class="muted">Meta and GA4 also require environment variables before events can forward.</p>
+        <p class="muted">Session recording is high risk and should stay off for production patient traffic until a risk analysis approves it.</p>
+        <p class="muted"><a href="/settings/advanced">Advanced risk settings</a></p>
       </article>
 
       <article class="card">
@@ -188,21 +190,67 @@ export function dashboardPage(input: {
       </article>
 
       <article class="card">
-        <h2>Audience builder</h2>
-        <form action="/audiences" method="post">
-          <label>Name <input name="name" placeholder="High value leads"></label>
-          <label>Event name <input name="eventName" placeholder="Lead"></label>
-          <label>URL contains <input name="urlContains" placeholder="/thank-you"></label>
-          <label>Minimum value <input name="minValue" type="number" min="0" step="0.01"></label>
-          <button class="secondary" type="submit">Create audience</button>
-        </form>
-        ${input.audiences.map((audience) => `<div class="row"><strong>${escapeHtml(audience.name)}</strong><span class="muted">${escapeHtml([audience.eventName, audience.urlContains, audience.minValue].filter(Boolean).join(' · ') || 'All matched events')}</span></div>`).join('')}
-      </article>
-
-      <article class="card">
         <h2>Destination readiness</h2>
         <pre>${escapeHtml(JSON.stringify(input.destinations, null, 2))}</pre>
       </article>
+    </section>`,
+  )
+}
+
+export function advancedSettingsPage(input: {
+  settings: AppSettings
+  stats: DashboardStats
+  audiences: AudienceRule[]
+}) {
+  const audienceDisabled = !input.settings.features.audienceBuilder
+  const disabled = audienceDisabled ? ' disabled' : ''
+
+  return layout(
+    'Advanced risk settings',
+    `${topNav()}
+    <header class="card danger">
+      <p class="pill">Advanced risk settings</p>
+      <h1>Handle with care</h1>
+      <p><strong>Audience building can create serious HIPAA and ad-platform risk.</strong> Keep it disabled unless counsel and your risk analysis approve the exact use case. Do not build or export treatment, diagnosis, condition, medication, or procedure audiences for Meta, Google, or other ad platforms.</p>
+    </header>
+
+    <section class="grid">
+      <article class="card danger">
+        <h2>Audience builder</h2>
+        <p>When enabled, rules evaluate already-sanitized relay events and store HMAC-pseudonymous members. This is still sensitive operational data and should remain internal.</p>
+        <form action="/settings/audience-builder" method="post">
+          <label class="inline-check"><input type="checkbox" name="audienceBuilder" value="on"${input.settings.features.audienceBuilder ? ' checked' : ''}> Enable audience builder</label>
+          <label class="inline-check"><input type="checkbox" name="audienceBuilderRiskAccepted" value="on"> I understand this must not be used to create treatment, condition, diagnosis, medication, or procedure audiences for ad platforms.</label>
+          <p><button type="submit">Save advanced setting</button></p>
+        </form>
+        <p class="muted">Current audience rules: ${input.stats.audienceRules}. Current pseudonymous members: ${input.stats.audienceMembers}.</p>
+      </article>
+
+      <article class="card ${audienceDisabled ? 'warning' : ''}">
+        <h2>Create internal audience</h2>
+        <p class="muted">${audienceDisabled ? 'Enable audience builder and acknowledge the warning before creating rules.' : 'Rules should be generic conversion or funnel rules, not treatment or condition segments.'}</p>
+        <form action="/audiences" method="post">
+          <label>Name <input name="name" placeholder="High value leads"${disabled}></label>
+          <label>Event name <input name="eventName" placeholder="Lead"${disabled}></label>
+          <label>URL contains <input name="urlContains" placeholder="/thank-you"${disabled}></label>
+          <label>Minimum value <input name="minValue" type="number" min="0" step="0.01"${disabled}></label>
+          <button class="secondary" type="submit"${disabled}>Create audience</button>
+        </form>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Existing internal audiences</h2>
+      ${
+        input.audiences.length
+          ? input.audiences
+              .map(
+                (audience) =>
+                  `<div class="row"><strong>${escapeHtml(audience.name)}</strong><span class="muted">${escapeHtml([audience.eventName, audience.urlContains, audience.minValue].filter(Boolean).join(' · ') || 'All matched events')}</span></div>`,
+              )
+              .join('')
+          : '<p class="muted">No audience rules created.</p>'
+      }
     </section>`,
   )
 }
@@ -221,7 +269,7 @@ export function usageDocs(publicBaseUrl: string) {
 })`)}</pre>
       <h2>Update consent</h2>
       <pre>${escapeHtml(`window.hipaaTracking.consent('granted')`)}</pre>
-      <p>Feature flags are server-controlled. You do not need to replace the installed pixel when session recording, consent management, audiences, Meta, or GA4 are toggled.</p>
+      <p>Feature flags are server-controlled. You do not need to replace the installed pixel when session recording, consent management, Meta, or GA4 are toggled. Audience builder controls are intentionally isolated under advanced risk settings.</p>
     </section>`,
   )
 }
@@ -239,7 +287,9 @@ export function developerDocs() {
       <div class="row"><strong>POST /consent</strong><span>Consent event ingest</span></div>
       <div class="row"><strong>POST /record</strong><span>Encrypted rrweb recording chunks</span></div>
       <h2>Session recording</h2>
-      <p>The recorder uses rrweb under its MIT license. It batches incremental events and posts chunks with sendBeacon/fetch. Inputs are masked, selected elements can be blocked with <code>ht-block</code>, and collection only starts when the feature is enabled and consent is granted.</p>
+      <p>The recorder uses rrweb under its MIT license. It batches incremental events and posts chunks with sendBeacon/fetch. Inputs are masked with a custom input masker, editable regions are blocked, visible text is scrubbed for emails, phones, numbers, addresses, dates, and sensitive labels, selected elements can be blocked with <code>ht-block</code> or <code>data-ht-block</code>, and collection only starts when the feature is enabled and consent is granted.</p>
+      <h2>Audience builder</h2>
+      <p>Audience builder is intentionally buried under advanced risk settings. It should be used only for internal, generic funnel analysis after legal and risk review. Do not create treatment, condition, diagnosis, medication, or procedure audiences for ad platforms.</p>
       <h2>Storage</h2>
       <p>Use Postgres through <code>DATABASE_URL</code>. Recording chunks and consent payloads are encrypted with AES-256-GCM before being stored. Audience membership keys are HMAC pseudonyms rather than raw client identifiers.</p>
     </section>`,

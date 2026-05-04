@@ -53,12 +53,20 @@ rrweb from the relay host only after runtime configuration says recording is
 enabled and consent is granted. The recorder uses:
 
 - `maskAllInputs: true`;
-- `maskTextSelector` for inputs, textareas, selects, contenteditable nodes, and
-  anything marked `data-ht-mask`;
+- a custom `maskInputFn` for editable field values;
+- `maskInputOptions` for text, email, phone, URL, search, date, number,
+  password, textarea, and select fields;
+- `maskTextSelector: "body"` plus a text scrubber that replaces common emails,
+  phone numbers, SSNs, card-like numbers, dates, addresses, sensitive labels,
+  and numbers;
+- `blockSelector` for `data-ht-block`, `ht-block`, contenteditable regions,
+  textbox roles, and multiline editable regions;
 - `blockClass: "ht-block"` for regions that should not be serialized;
 - batched uploads to reduce network overhead.
 
-Recording chunks are encrypted with AES-256-GCM before database storage.
+Recording chunks are also scrubbed server-side before being encrypted with
+AES-256-GCM for database storage. This is defense-in-depth, not a guarantee
+that recordings are safe to enable on pages where PHI may appear.
 
 ## Consent Events
 
@@ -67,5 +75,10 @@ platforms.
 
 ## Audiences
 
-Audience rules evaluate sanitized relay events. Audience members are keyed with
-an HMAC of the browser client ID, not the raw client ID.
+Audience builder is intentionally buried under advanced risk settings and starts
+disabled. Audience rules evaluate sanitized relay events. Audience members are
+keyed with an HMAC of the browser client ID, not the raw client ID.
+
+Do not use audience builder to create treatment, condition, diagnosis,
+medication, or procedure audiences for ad platforms. It should remain internal
+unless counsel and a documented risk analysis approve the exact use case.
