@@ -12,13 +12,17 @@ export function createPixelScript(config: RelayConfig) {
   var baseUrl = ${JSON.stringify(baseUrl)}
   var siteId = currentScript && currentScript.getAttribute('data-site-id') || ${JSON.stringify(config.siteId)}
   var autoPageView = !(currentScript && currentScript.getAttribute('data-auto-pageview') === 'false')
-  var consent = currentScript && currentScript.getAttribute('data-consent') || getStoredConsent() || 'unknown'
+  var scriptConsent = currentScript && currentScript.getAttribute('data-consent')
+  var consent = initialConsent(scriptConsent)
+  var consentCategories = getStoredConsentCategories() || categoriesForConsent(consent)
   var endpoint = currentScript && currentScript.getAttribute('data-endpoint') || baseUrl + '/collect'
-  var configEndpoint = baseUrl + '/client-config?siteId=' + encodeURIComponent(siteId)
+  var regionCode = normalizeRegionCode(currentScript && currentScript.getAttribute('data-region-code') || '')
+  var configEndpoint = baseUrl + '/client-config?siteId=' + encodeURIComponent(siteId) + (regionCode ? '&regionCode=' + encodeURIComponent(regionCode) : '')
   var sessionId = getSessionId()
   var recordingBuffer = []
   var recordingTimer = null
   var runtimeConfig = null
+  var autoPageViewSent = false
 
   function uuid() {
     if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID()
@@ -37,6 +41,52 @@ export function createPixelScript(config: RelayConfig) {
 
   function getStoredConsent() {
     return getCookie('hipaa_tracking_consent')
+  }
+
+  function initialConsent(value) {
+    if (value === 'granted' || value === 'denied') return value
+    return getStoredConsent() || value || 'unknown'
+  }
+
+  function getStoredConsentCategories() {
+    var stored = getCookie('hipaa_tracking_consent_categories')
+    if (!stored) return null
+    try {
+      return normalizeCategories(JSON.parse(stored), categoriesForConsent(consent))
+    } catch (_error) {
+      return null
+    }
+  }
+
+  function setStoredConsentCategories(categories) {
+    setCookie('hipaa_tracking_consent_categories', JSON.stringify(categories), 180)
+  }
+
+  function categoriesForConsent(nextConsent) {
+    var granted = nextConsent === 'granted'
+    return { analytics: granted, advertising: granted, recording: granted }
+  }
+
+  function autoConsentCategories() {
+    return { analytics: true, advertising: true, recording: false }
+  }
+
+  function deniedCategories() {
+    return { analytics: false, advertising: false, recording: false }
+  }
+
+  function normalizeCategories(categories, fallback) {
+    fallback = fallback || deniedCategories()
+    categories = categories || {}
+    return {
+      analytics: typeof categories.analytics === 'boolean' ? categories.analytics : fallback.analytics,
+      advertising: typeof categories.advertising === 'boolean' ? categories.advertising : fallback.advertising,
+      recording: typeof categories.recording === 'boolean' ? categories.recording : fallback.recording
+    }
+  }
+
+  function normalizeRegionCode(value) {
+    return String(value || '').trim().toUpperCase().replace(/^US-/, '')
   }
 
   function getClientId() {
@@ -84,6 +134,11 @@ export function createPixelScript(config: RelayConfig) {
 
   function send(eventName, data) {
     data = data || {}
+    if (!trackingAllowed(data)) {
+      return Promise.resolve({ skipped: true, reason: 'consent_not_granted' })
+    }
+
+    var categories = normalizeCategories(data.consentCategories, consentCategories)
     var body = {
       siteId: siteId,
       eventName: eventName,
@@ -93,6 +148,7 @@ export function createPixelScript(config: RelayConfig) {
       referrer: document.referrer,
       clientId: getClientId(),
       consent: data.consent || consent,
+      consentCategories: categories,
       customData: data.customData || data,
       timestamp: Date.now()
     }
@@ -100,36 +156,173 @@ export function createPixelScript(config: RelayConfig) {
     return postJson(endpoint, body)
   }
 
-  function sendConsent(nextConsent, categories) {
+  function sendConsent(nextConsent, categories, reason) {
     consent = nextConsent
+    consentCategories = normalizeCategories(categories, categoriesForConsent(nextConsent))
     setCookie('hipaa_tracking_consent', nextConsent, 180)
+    setStoredConsentCategories(consentCategories)
     return postJson(baseUrl + '/consent', {
       siteId: siteId,
       clientId: getClientId(),
       consent: nextConsent,
-      categories: categories || { analytics: nextConsent === 'granted', recording: nextConsent === 'granted', advertising: nextConsent === 'granted' },
+      categories: consentCategories,
+      reason: reason || 'user_choice',
+      regionCode: regionCode || runtimeConfig && runtimeConfig.regionCode || '',
       url: window.location.href,
       timestamp: Date.now()
     }).then(function () {
-      if (nextConsent === 'granted') startRecordingIfAllowed()
+      if (nextConsent === 'granted') {
+        maybeSendAutoPageView()
+        startRecordingIfAllowed()
+      }
     })
+  }
+
+  function trackingAllowed(data) {
+    if (!runtimeConfig || !runtimeConfig.features || !runtimeConfig.features.consentManager) return true
+    if ((data && data.consent) === 'granted') return true
+    return consent === 'granted' && (consentCategories.analytics || consentCategories.advertising)
+  }
+
+  function maybeSendAutoPageView() {
+    if (!autoPageView || autoPageViewSent || !trackingAllowed({})) return
+    autoPageViewSent = true
+    send('PageView', {})
+  }
+
+  function optOutSignalReason() {
+    var consentConfig = runtimeConfig && runtimeConfig.consent || {}
+    if (consentConfig.respectOptOutSignals === false) return ''
+    if ((runtimeConfig && runtimeConfig.signals && runtimeConfig.signals.gpcHeader) || window.navigator.globalPrivacyControl === true) return 'global_privacy_control'
+    if (window.navigator.doNotTrack === '1' || window.doNotTrack === '1' || window.navigator.msDoNotTrack === '1') return 'do_not_track'
+    return ''
+  }
+
+  function requiresExplicitConsent() {
+    var consentConfig = runtimeConfig && runtimeConfig.consent || {}
+    var detectedRegion = normalizeRegionCode(regionCode || runtimeConfig && runtimeConfig.regionCode || '')
+    var regions = consentConfig.requiredRegionCodes || []
+    return !!detectedRegion && regions.map(normalizeRegionCode).indexOf(detectedRegion) >= 0
+  }
+
+  function applyConsentPolicy() {
+    if (!runtimeConfig || !runtimeConfig.features || !runtimeConfig.features.consentManager) {
+      return Promise.resolve()
+    }
+
+    if (getStoredConsent()) return Promise.resolve()
+
+    var optOutReason = optOutSignalReason()
+    if (optOutReason) {
+      return sendConsent('denied', deniedCategories(), optOutReason).then(function () {
+        showConsentNotice('Your browser privacy signal has been honored. Optional tracking is off.')
+      })
+    }
+
+    var consentConfig = runtimeConfig.consent || {}
+    if (consentConfig.preset === 'bottom_auto_except_required' && !requiresExplicitConsent()) {
+      return sendConsent('granted', autoConsentCategories(), 'auto_consent').then(function () {
+        showConsentNotice('Privacy-preserving analytics are on. Session recording stays off unless you enable it.')
+      })
+    }
+
+    showConsentBanner()
+    return Promise.resolve()
+  }
+
+  function ensureConsentStyles() {
+    if (document.getElementById('hipaa-tracking-consent-style')) return
+    var style = document.createElement('style')
+    style.id = 'hipaa-tracking-consent-style'
+    style.textContent = '#hipaa-tracking-consent{position:fixed;z-index:2147483647;font:14px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#111827}#hipaa-tracking-consent.ht-modal{inset:0;background:rgba(15,23,42,.38);display:flex;align-items:center;justify-content:center;padding:18px}#hipaa-tracking-consent.ht-bottom{left:16px;right:16px;bottom:16px;display:flex;justify-content:flex-start}.ht-consent-panel{width:min(520px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 22px 60px rgba(15,23,42,.22);padding:18px}.ht-bottom .ht-consent-panel{width:min(460px,100%);padding:14px}.ht-consent-title{font-size:18px;font-weight:800;margin:0 0 8px}.ht-consent-text{line-height:1.45;color:#4b5563;margin:0 0 14px}.ht-consent-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ht-consent-actions button{border:1px solid #d1d5db;background:#fff;color:#111827;border-radius:8px;padding:9px 11px;font:inherit;font-weight:800;cursor:pointer}.ht-consent-actions [data-ht-accept],.ht-consent-actions [data-ht-save]{background:#111827;color:#fff;border-color:#111827}.ht-consent-check{display:flex;gap:8px;align-items:flex-start;margin:10px 0;font-weight:700}.ht-consent-check input{margin-top:3px}@media(max-width:640px){#hipaa-tracking-consent.ht-modal{align-items:flex-end;padding:0}.ht-modal .ht-consent-panel{border-radius:8px 8px 0 0;min-height:50vh}.ht-bottom{left:0!important;right:0!important;bottom:0!important}.ht-bottom .ht-consent-panel{width:100%;border-radius:8px 8px 0 0}}'
+    document.head.appendChild(style)
   }
 
   function showConsentBanner() {
     if (getStoredConsent() || document.getElementById('hipaa-tracking-consent')) return
+    ensureConsentStyles()
+    var preset = runtimeConfig && runtimeConfig.consent && runtimeConfig.consent.preset || 'modal_accept_manage_deny'
+    var isBottom = preset === 'bottom_auto_except_required'
     var banner = document.createElement('div')
     banner.id = 'hipaa-tracking-consent'
-    banner.style.cssText = 'position:fixed;z-index:2147483647;left:16px;right:16px;bottom:16px;background:#111827;color:#fff;border-radius:8px;padding:14px;box-shadow:0 16px 40px rgba(0,0,0,.25);font:14px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;display:flex;gap:12px;align-items:center;justify-content:space-between;'
-    banner.innerHTML = '<span>We use privacy-preserving analytics to improve the site. Sensitive page details are redacted before leaving this site.</span><span style="white-space:nowrap"><button data-ht-deny style="margin-right:8px;border:1px solid #4b5563;background:transparent;color:#fff;border-radius:6px;padding:8px 10px;font:inherit">Decline</button><button data-ht-accept style="border:0;background:#2f6f73;color:#fff;border-radius:6px;padding:8px 10px;font:inherit;font-weight:700">Allow</button></span>'
+    banner.className = isBottom ? 'ht-bottom' : 'ht-modal'
+    banner.innerHTML = consentChoiceHtml(preset)
     document.body.appendChild(banner)
-    banner.querySelector('[data-ht-deny]').onclick = function () {
-      sendConsent('denied')
+    wireConsentBanner(banner, preset)
+  }
+
+  function showConsentNotice(message) {
+    if (document.getElementById('hipaa-tracking-consent')) return
+    ensureConsentStyles()
+    var banner = document.createElement('div')
+    banner.id = 'hipaa-tracking-consent'
+    banner.className = 'ht-bottom'
+    banner.innerHTML = '<div class="ht-consent-panel"><p class="ht-consent-text">' + escapeHtml(message) + '</p><div class="ht-consent-actions"><button data-ht-manage>Privacy settings</button><button data-ht-close>Close</button></div></div>'
+    document.body.appendChild(banner)
+    banner.querySelector('[data-ht-close]').onclick = function () {
       banner.remove()
     }
-    banner.querySelector('[data-ht-accept]').onclick = function () {
-      sendConsent('granted')
+    banner.querySelector('[data-ht-manage]').onclick = function () {
+      banner.remove()
+      showPreferencesPanel()
+    }
+  }
+
+  function consentChoiceHtml(preset) {
+    var denyButton = preset === 'modal_accept_options' ? '' : '<button data-ht-deny>Deny</button>'
+    return '<div class="ht-consent-panel"><h2 class="ht-consent-title">Privacy choices</h2><p class="ht-consent-text">We use a privacy-preserving relay for analytics and conversion measurement. Sensitive page details are redacted before ad or analytics platforms receive events.</p><div class="ht-consent-actions"><button data-ht-accept>Accept</button><button data-ht-manage>' + (preset === 'modal_accept_options' ? 'More options' : 'Manage preferences') + '</button>' + denyButton + '</div></div>'
+  }
+
+  function preferencesHtml() {
+    return '<div class="ht-consent-panel"><h2 class="ht-consent-title">Privacy preferences</h2><p class="ht-consent-text">Choose which optional modules can run. Opt-out browser signals always turn optional tracking off when signal support is enabled.</p><label class="ht-consent-check"><input type="checkbox" data-ht-cat="analytics" checked> Analytics</label><label class="ht-consent-check"><input type="checkbox" data-ht-cat="advertising" checked> Conversion measurement</label><label class="ht-consent-check"><input type="checkbox" data-ht-cat="recording"> Session recording</label><div class="ht-consent-actions"><button data-ht-save>Save preferences</button><button data-ht-deny>Deny all</button></div></div>'
+  }
+
+  function showPreferencesPanel() {
+    var existing = document.getElementById('hipaa-tracking-consent')
+    if (existing) existing.remove()
+    ensureConsentStyles()
+    var banner = document.createElement('div')
+    banner.id = 'hipaa-tracking-consent'
+    banner.className = 'ht-modal'
+    banner.innerHTML = preferencesHtml()
+    document.body.appendChild(banner)
+    wireConsentBanner(banner, 'preferences')
+  }
+
+  function wireConsentBanner(banner, preset) {
+    var accept = banner.querySelector('[data-ht-accept]')
+    var deny = banner.querySelector('[data-ht-deny]')
+    var manage = banner.querySelector('[data-ht-manage]')
+    var save = banner.querySelector('[data-ht-save]')
+
+    if (accept) accept.onclick = function () {
+      sendConsent('granted', categoriesForConsent('granted'), 'user_accept_all')
       banner.remove()
     }
+    if (deny) deny.onclick = function () {
+      sendConsent('denied', deniedCategories(), 'user_deny_all')
+      banner.remove()
+    }
+    if (manage) manage.onclick = function () {
+      banner.remove()
+      showPreferencesPanel()
+    }
+    if (save) save.onclick = function () {
+      var categories = {
+        analytics: !!banner.querySelector('[data-ht-cat="analytics"]:checked'),
+        advertising: !!banner.querySelector('[data-ht-cat="advertising"]:checked'),
+        recording: !!banner.querySelector('[data-ht-cat="recording"]:checked')
+      }
+      var nextConsent = categories.analytics || categories.advertising || categories.recording ? 'granted' : 'denied'
+      sendConsent(nextConsent, categories, 'user_preferences')
+      banner.remove()
+    }
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, function (char) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]
+    })
   }
 
   function loadScript(src, onload) {
@@ -215,7 +408,7 @@ export function createPixelScript(config: RelayConfig) {
   }
 
   function startRecordingIfAllowed() {
-    if (!runtimeConfig || !runtimeConfig.features.sessionRecording || consent !== 'granted') return
+    if (!runtimeConfig || !runtimeConfig.features.sessionRecording || consent !== 'granted' || !consentCategories.recording) return
     if (window.__hipaaTrackingRecordingStarted) return
     window.__hipaaTrackingRecordingStarted = true
 
@@ -265,14 +458,17 @@ export function createPixelScript(config: RelayConfig) {
 
   function boot(nextConfig) {
     runtimeConfig = nextConfig || { features: {} }
-    if (runtimeConfig.features.consentManager) showConsentBanner()
-    if (autoPageView) send('PageView', {})
-    startRecordingIfAllowed()
+    regionCode = normalizeRegionCode(regionCode || runtimeConfig.regionCode || '')
+    applyConsentPolicy().then(function () {
+      maybeSendAutoPageView()
+      startRecordingIfAllowed()
+    })
   }
 
   window.hipaaTracking = window.hipaaTracking || {}
   window.hipaaTracking.track = send
   window.hipaaTracking.consent = sendConsent
+  window.hipaaTracking.showConsentPreferences = showPreferencesPanel
   window.hipaaTracking.flushRecording = flushRecording
 
   window.fetch(configEndpoint, { credentials: 'omit' })

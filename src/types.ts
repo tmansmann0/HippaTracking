@@ -31,6 +31,29 @@ export type RelayConfig = {
 
 export type ConsentState = 'granted' | 'denied' | 'unknown'
 
+export type ConsentPreset =
+  | 'modal_accept_options'
+  | 'modal_accept_manage_deny'
+  | 'bottom_auto_except_required'
+
+export type ConsentCategories = {
+  analytics: boolean
+  advertising: boolean
+  recording: boolean
+}
+
+export type ConsentCategoryInput = {
+  analytics?: boolean | undefined
+  advertising?: boolean | undefined
+  recording?: boolean | undefined
+}
+
+export type ConsentSettings = {
+  preset: ConsentPreset
+  respectOptOutSignals: boolean
+  requiredRegionCodes: string[]
+}
+
 export type IncomingRelayEvent = {
   siteId: string
   eventName: string
@@ -43,6 +66,7 @@ export type IncomingRelayEvent = {
   fbc?: string | undefined
   userAgent?: string | undefined
   consent?: ConsentState | undefined
+  consentCategories?: ConsentCategoryInput | undefined
   customData?: Record<string, string | number | boolean> | undefined
   timestamp?: number | undefined
 }
@@ -61,6 +85,7 @@ export type SanitizedRelayEvent = {
   fbp?: string | undefined
   fbc?: string | undefined
   userAgent?: string | undefined
+  consentCategories: ConsentCategories
   customData: Record<string, string | number>
   droppedFields: string[]
 }
@@ -99,6 +124,7 @@ export type AppSettings = {
   sensitivePathPatterns: string[]
   allowedCustomDataKeys: string[]
   features: FeatureFlags
+  consent: ConsentSettings
 }
 
 export type AdminUser = {
@@ -113,7 +139,9 @@ export type ConsentEvent = {
   siteId: string
   clientId: string
   consent: ConsentState
-  categories: Record<string, boolean>
+  categories: ConsentCategories
+  reason?: string | undefined
+  regionCode?: string | undefined
   url?: string | undefined
   timestamp: number
 }

@@ -2,6 +2,11 @@ import { z } from 'zod'
 import type { ConsentEvent, IncomingRelayEvent, RecordingChunk } from './types.js'
 
 const customValueSchema = z.union([z.string(), z.number(), z.boolean()])
+const consentCategoriesSchema = z.object({
+  analytics: z.boolean().default(false),
+  advertising: z.boolean().default(false),
+  recording: z.boolean().default(false),
+})
 
 export const collectEventSchema = z.object({
   siteId: z.string().min(1).max(80),
@@ -15,6 +20,7 @@ export const collectEventSchema = z.object({
   fbc: z.string().max(220).optional(),
   userAgent: z.string().max(512).optional(),
   consent: z.enum(['granted', 'denied', 'unknown']).optional(),
+  consentCategories: consentCategoriesSchema.partial().optional(),
   customData: z.record(z.string(), customValueSchema).optional(),
   timestamp: z.number().int().positive().optional(),
 }) satisfies z.ZodType<IncomingRelayEvent>
@@ -23,7 +29,13 @@ export const consentEventSchema = z.object({
   siteId: z.string().min(1).max(80),
   clientId: z.string().min(1).max(180),
   consent: z.enum(['granted', 'denied', 'unknown']),
-  categories: z.record(z.string(), z.boolean()).default({}),
+  categories: consentCategoriesSchema.default({
+    analytics: false,
+    advertising: false,
+    recording: false,
+  }),
+  reason: z.string().max(120).optional(),
+  regionCode: z.string().max(16).optional(),
   url: z.string().max(4096).optional(),
   timestamp: z.number().int().positive().default(() => Date.now()),
 }) satisfies z.ZodType<ConsentEvent>

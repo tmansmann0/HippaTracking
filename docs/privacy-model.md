@@ -72,6 +72,21 @@ that recordings are safe to enable on pages where PHI may appear.
 Consent events are stored as encrypted payloads. They are not forwarded to ad
 platforms.
 
+The hosted pixel can act as its own consent collector. It supports:
+
+- a center-screen modal with `Accept` and `More options`;
+- a center-screen modal with `Accept`, `Manage preferences`, and `Deny`;
+- a small bottom notice that auto-consents outside configured explicit-consent
+  regions.
+
+Global Privacy Control and Do Not Track signals are treated as opt-outs when
+signal support is enabled. A GPC opt-out can be detected through the
+`navigator.globalPrivacyControl` browser property or the `Sec-GPC: 1` header on
+the `/client-config` request.
+
+The auto-consent preset grants analytics and conversion measurement only. It
+does not silently grant session recording.
+
 ## Audiences
 
 Audience builder is intentionally buried under advanced risk settings and starts

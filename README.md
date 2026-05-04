@@ -26,6 +26,10 @@ destinations.
 - Sends sanitized events to Meta Conversions API.
 - Sends sanitized events to GA4 Measurement Protocol.
 - Optional consent manager with server-side consent event logging.
+- Built-in consent collector presets: center modal accept/options, center modal
+  accept/manage/deny, and small bottom notice with auto-consent outside
+  configured explicit-consent regions.
+- Automatic opt-out for Global Privacy Control and Do Not Track browser signals.
 - Optional MIT-licensed rrweb session recording with input masking and encrypted
   chunks.
 - Optional high-risk audience builder, isolated under advanced settings, that
@@ -64,7 +68,9 @@ Track a conversion:
 </script>
 ```
 
-If you have a consent banner, update consent before tracking:
+If you use the built-in consent collector, turn on **Consent manager** in the
+dashboard and choose a preset. If you bring your own banner, update consent
+before tracking:
 
 ```html
 <script>
@@ -102,6 +108,34 @@ Receives browser event data.
     "currency": "USD"
   }
 }
+```
+
+### Consent Collector
+
+When the consent manager feature is enabled, `/pixel.js` can collect consent
+directly. Presets are managed in the dashboard:
+
+- `modal_accept_options`: center-screen modal with **Accept** and **More
+  options**.
+- `modal_accept_manage_deny`: center-screen modal with **Accept**, **Manage
+  preferences**, and **Deny**. This is the default.
+- `bottom_auto_except_required`: small bottom notice. It auto-grants
+  analytics/conversion measurement outside configured explicit-consent regions,
+  but keeps session recording off until a user explicitly enables it.
+
+The collector automatically denies optional tracking when it sees Global Privacy
+Control or Do Not Track. It also serves `/.well-known/gpc.json`.
+
+For regional consent mode, pass a state/region code if your site already has
+reliable geo:
+
+```html
+<script
+  async
+  src="https://YOUR-RELAY-DOMAIN/pixel.js"
+  data-site-id="default"
+  data-region-code="CA"
+></script>
 ```
 
 Sensitive page output uses a redacted URL:

@@ -11,7 +11,7 @@ import type {
   RelayConfig,
 } from './types.js'
 import { CryptoBox, hmacIdentifier } from './crypto-box.js'
-import { defaultSettings } from './settings.js'
+import { defaultSettings, normalizeSettings } from './settings.js'
 
 export type Store = {
   init(): Promise<void>
@@ -82,7 +82,7 @@ class MemoryStore implements Store {
   }
 
   async saveSettings(settings: AppSettings) {
-    this.settings = settings
+    this.settings = normalizeSettings(settings, this.config)
   }
 
   async saveConsent(event: ConsentEvent) {
@@ -244,15 +244,16 @@ class PostgresStore implements Store {
     const result = await this.pool.query<{ data: AppSettings }>(
       'select data from app_settings where id = 1',
     )
-    return result.rows[0]?.data ?? defaultSettings(this.config)
+    return normalizeSettings(result.rows[0]?.data ?? defaultSettings(this.config), this.config)
   }
 
   async saveSettings(settings: AppSettings) {
+    const normalized = normalizeSettings(settings, this.config)
     await this.pool.query(
       `insert into app_settings (id, data, updated_at)
        values (1, $1, now())
        on conflict (id) do update set data = excluded.data, updated_at = now()`,
-      [settings],
+      [normalized],
     )
   }
 

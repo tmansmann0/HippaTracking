@@ -190,6 +190,23 @@ export function dashboardPage(input: {
       </article>
 
       <article class="card">
+        <h2>Consent collector</h2>
+        <form action="/settings/consent" method="post">
+          <label>Preset
+            <select name="consentPreset">
+              <option value="modal_accept_options"${input.settings.consent.preset === 'modal_accept_options' ? ' selected' : ''}>Center modal: accept or more options</option>
+              <option value="modal_accept_manage_deny"${input.settings.consent.preset === 'modal_accept_manage_deny' ? ' selected' : ''}>Center modal: accept, manage, deny</option>
+              <option value="bottom_auto_except_required"${input.settings.consent.preset === 'bottom_auto_except_required' ? ' selected' : ''}>Bottom notice: auto-consent except required regions</option>
+            </select>
+          </label>
+          <label class="inline-check"><input type="checkbox" name="respectOptOutSignals" value="on"${input.settings.consent.respectOptOutSignals ? ' checked' : ''}> Automatically deny tracking when GPC or Do Not Track opt-out signals are present</label>
+          <label>Regions requiring explicit consent <textarea name="requiredRegionCodes">${escapeHtml(input.settings.consent.requiredRegionCodes.join('\n'))}</textarea></label>
+          <p><button type="submit">Save consent settings</button></p>
+        </form>
+        <p class="muted">Region detection uses <code>data-region-code</code> on the pixel script, <code>?regionCode=</code>, or common edge headers. Unknown regions use the selected preset default.</p>
+      </article>
+
+      <article class="card">
         <h2>Destination readiness</h2>
         <pre>${escapeHtml(JSON.stringify(input.destinations, null, 2))}</pre>
       </article>
@@ -269,6 +286,8 @@ export function usageDocs(publicBaseUrl: string) {
 })`)}</pre>
       <h2>Update consent</h2>
       <pre>${escapeHtml(`window.hipaaTracking.consent('granted')`)}</pre>
+      <h2>Set region for consent mode</h2>
+      <pre>${escapeHtml(`<script async src="${publicBaseUrl}/pixel.js" data-site-id="default" data-region-code="CA"></script>`)}</pre>
       <p>Feature flags are server-controlled. You do not need to replace the installed pixel when session recording, consent management, Meta, or GA4 are toggled. Audience builder controls are intentionally isolated under advanced risk settings.</p>
     </section>`,
   )
@@ -286,6 +305,8 @@ export function developerDocs() {
       <div class="row"><strong>POST /collect</strong><span>Conversion event ingest</span></div>
       <div class="row"><strong>POST /consent</strong><span>Consent event ingest</span></div>
       <div class="row"><strong>POST /record</strong><span>Encrypted rrweb recording chunks</span></div>
+      <h2>Consent collector</h2>
+      <p>The pixel can run its own consent collector. It supports a center modal with accept/options, a center modal with accept/manage/deny, and a small bottom notice that auto-consents outside configured explicit-consent regions. GPC and Do Not Track signals automatically deny optional tracking when enabled.</p>
       <h2>Session recording</h2>
       <p>The recorder uses rrweb under its MIT license. It batches incremental events and posts chunks with sendBeacon/fetch. Inputs are masked with a custom input masker, editable regions are blocked, visible text is scrubbed for emails, phones, numbers, addresses, dates, and sensitive labels, selected elements can be blocked with <code>ht-block</code> or <code>data-ht-block</code>, and collection only starts when the feature is enabled and consent is granted.</p>
       <h2>Audience builder</h2>

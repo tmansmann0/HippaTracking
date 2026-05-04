@@ -46,6 +46,7 @@ export function sanitizeIncomingEvent(
     detectedSignals,
     consent,
     clientId,
+    consentCategories: normalizeConsentCategories(consent, incoming.consentCategories),
     customData: sanitizeCustomData(incoming.customData, config.allowedCustomDataKeys),
     droppedFields,
   }
@@ -133,4 +134,17 @@ function stableFallbackClientId(incoming: IncomingRelayEvent) {
     .slice(0, 24)
 
   return `relay.${digest}`
+}
+
+function normalizeConsentCategories(
+  consent: IncomingRelayEvent['consent'],
+  categories: IncomingRelayEvent['consentCategories'],
+) {
+  const granted = consent === 'granted'
+
+  return {
+    analytics: categories?.analytics ?? granted,
+    advertising: categories?.advertising ?? granted,
+    recording: categories?.recording ?? granted,
+  }
 }

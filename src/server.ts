@@ -21,7 +21,7 @@ import { createPixelScript } from './pixel-script.js'
 import { sanitizeRecordingChunkEvents } from './recording-sanitize.js'
 import { sanitizeIncomingEvent } from './sanitize.js'
 import { clearSessionCookie, createSessionCookie, requireSession } from './session.js'
-import { defaultSettings, parseCsv } from './settings.js'
+import { defaultSettings, parseCsv, parseRegionCodes } from './settings.js'
 import { createStore } from './store.js'
 import type { AppSettings, CollectResponse, RelayConfig } from './types.js'
 import {
@@ -203,6 +203,22 @@ app.post('/settings/policy', async (request, response) => {
   response.redirect('/dashboard')
 })
 
+app.post('/settings/consent', async (request, response) => {
+  const session = requireSession(request, response, config.appSecret)
+  if (!session) return
+
+  const settings = await store.getSettings()
+  await store.saveSettings({
+    ...settings,
+    consent: {
+      preset: consentPresetFromForm(request.body.consentPreset),
+      respectOptOutSignals: request.body.respectOptOutSignals === 'on',
+      requiredRegionCodes: parseRegionCodes(stringField(request.body.requiredRegionCodes)),
+    },
+  })
+  response.redirect('/dashboard')
+})
+
 app.post('/audiences', async (request, response) => {
   const session = requireSession(request, response, config.appSecret)
   if (!session) return
@@ -248,6 +264,13 @@ app.get('/healthz', async (_request, response) => {
   })
 })
 
+app.get('/.well-known/gpc.json', (_request, response) => {
+  response.json({
+    gpc: true,
+    lastUpdate: '2026-05-04',
+  })
+})
+
 app.get('/client-config', async (request, response) => {
   const settings = await store.getSettings()
   if (String(request.query.siteId ?? settings.siteId) !== settings.siteId) {
@@ -260,6 +283,11 @@ app.get('/client-config', async (request, response) => {
     siteId: settings.siteId,
     privacyMode: settings.privacyMode,
     features: settings.features,
+    consent: settings.consent,
+    signals: {
+      gpcHeader: request.get('sec-gpc') === '1',
+    },
+    regionCode: detectRegionCode(request),
     endpoints: {
       collect: `${config.publicBaseUrl.replace(/\/$/, '')}/collect`,
       consent: `${config.publicBaseUrl.replace(/\/$/, '')}/consent`,
@@ -314,7 +342,10 @@ app.post('/collect', async (request, response) => {
   }
 
   const event = sanitizeIncomingEvent(parsed.data, settingsToRelayConfig(config, settings))
-  const destinationConfig = effectiveDestinationConfig(config, settings)
+  const destinationConfig = effectiveEventDestinationConfig(
+    effectiveDestinationConfig(config, settings),
+    event,
+  )
   const destinations = await Promise.all([
     sendToMeta(event, destinationConfig),
     sendToGa4(event, destinationConfig),
@@ -429,6 +460,26 @@ function effectiveDestinationConfig(config: RelayConfig, settings: AppSettings):
   }
 }
 
+function effectiveEventDestinationConfig(
+  config: RelayConfig,
+  event: ReturnType<typeof sanitizeIncomingEvent>,
+): RelayConfig {
+  const canUseAnalytics = event.consent === 'granted' && event.consentCategories.analytics
+  const canUseAdvertising = event.consent === 'granted' && event.consentCategories.advertising
+
+  return {
+    ...config,
+    meta: {
+      ...config.meta,
+      enabled: config.meta.enabled && canUseAdvertising,
+    },
+    ga4: {
+      ...config.ga4,
+      enabled: config.ga4.enabled && canUseAnalytics,
+    },
+  }
+}
+
 function settingsToRelayConfig(config: RelayConfig, settings: AppSettings): RelayConfig {
   return {
     ...config,
@@ -456,6 +507,29 @@ function settingsFromSetupForm(body: Record<string, unknown>, config: RelayConfi
       audienceBuilder: false,
     },
   }
+}
+
+function consentPresetFromForm(value: unknown) {
+  if (
+    value === 'modal_accept_options' ||
+    value === 'modal_accept_manage_deny' ||
+    value === 'bottom_auto_except_required'
+  ) {
+    return value
+  }
+
+  return 'modal_accept_manage_deny'
+}
+
+function detectRegionCode(request: express.Request) {
+  const value =
+    stringField(request.query.regionCode).trim() ||
+    stringField(request.query.region).trim() ||
+    stringField(request.get('cf-region-code')).trim() ||
+    stringField(request.get('x-vercel-ip-country-region')).trim() ||
+    stringField(request.get('x-region-code')).trim()
+
+  return value.toUpperCase().replace(/^US-/, '')
 }
 
 function linesOrCsv(value: string) {

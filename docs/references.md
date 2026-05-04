@@ -18,3 +18,9 @@ Official documentation used for the initial relay implementation:
   <https://docs.railway.com/guides/publish-and-share>
 - rrweb package metadata:
   <https://www.npmjs.com/package/rrweb>
+- Global Privacy Control browser signal:
+  <https://developer.mozilla.org/en-US/docs/Web/API/Navigator/globalPrivacyControl>
+- Colorado recognized Global Privacy Control as a universal opt-out mechanism:
+  <https://coag.gov/opt-out/>
+- California CPPA FAQ on opt-out preference signals:
+  <https://cppa.ca.gov/faq>

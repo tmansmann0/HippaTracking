@@ -55,4 +55,25 @@ describe('sanitizeIncomingEvent', () => {
     expect(sanitized.userAgent).toBeUndefined()
     expect(sanitized.droppedFields).toEqual(expect.arrayContaining(['fbp', 'fbc', 'user_agent']))
   })
+
+  it('carries consent categories for downstream destination gating', () => {
+    const config = loadConfig({ PRIVACY_MODE: 'strict' })
+    const sanitized = sanitizeIncomingEvent(
+      {
+        ...baseEvent,
+        consent: 'granted',
+        consentCategories: {
+          analytics: true,
+          advertising: false,
+        },
+      },
+      config,
+    )
+
+    expect(sanitized.consentCategories).toEqual({
+      analytics: true,
+      advertising: false,
+      recording: true,
+    })
+  })
 })
