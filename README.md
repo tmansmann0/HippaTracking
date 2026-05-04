@@ -34,7 +34,8 @@ destinations.
 - Defaults to `PRIVACY_MODE=strict`.
 - Supports an optional `attribution` mode that forwards `_fbp`, `_fbc`, and user
   agent only when consent is granted and the page is not sensitive.
-- Includes Railway config-as-code for hosting.
+- Includes a Fly.io deployment path and Dockerfile. Railway config is retained
+  for demos or non-ePHI deployments.
 
 ## Install On A Site
 
@@ -181,10 +182,33 @@ GA4:
 | `GA4_API_SECRET` | Measurement Protocol API secret. |
 | `GA4_ENDPOINT_REGION` | `global` or `eu`. |
 
+## Deploy To Fly.io
+
+Fly.io is the recommended first production target for this repo because its
+public pricing currently advertises HIPAA/BAA support at `$99/mo` plus usage,
+whereas Render requires a Scale or Enterprise workspace for HIPAA.
+
+Fast path:
+
+1. Sign into Fly and complete the HIPAA BAA flow before collecting ePHI.
+2. Run `fly launch --no-deploy`.
+3. Choose a unique app name and a US region close to the tracked site.
+4. Create or attach Managed Postgres.
+5. Set `APP_SECRET`, `APP_ENCRYPTION_KEY`, `PUBLIC_BASE_URL`,
+   `ALLOWED_ORIGINS`, and `RELAY_SITE_ID` with `fly secrets set`.
+6. Deploy with `fly deploy`.
+7. Open `/setup` on the deployed service and complete the guided setup.
+
+See `docs/fly.md` for the full setup, pricing notes, and HIPAA guardrails.
+
 ## Deploy To Railway
 
 This repo includes `railway.json`, so Railway can build with `npm ci && npm run
 build`, start with `npm run start`, and healthcheck `/healthz`.
+
+Railway is no longer the recommended production path unless Railway provides an
+executed BAA that clearly covers the app and database services. Use Fly for the
+current lower-friction HIPAA deployment path.
 
 Fast path:
 
