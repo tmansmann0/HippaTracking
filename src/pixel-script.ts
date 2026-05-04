@@ -232,10 +232,51 @@ export function createPixelScript(config: RelayConfig) {
 
   function ensureConsentStyles() {
     if (document.getElementById('hipaa-tracking-consent-style')) return
+    var theme = consentTheme()
     var style = document.createElement('style')
     style.id = 'hipaa-tracking-consent-style'
-    style.textContent = '#hipaa-tracking-consent{position:fixed;z-index:2147483647;font:14px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#111827}#hipaa-tracking-consent.ht-modal{inset:0;background:rgba(15,23,42,.38);display:flex;align-items:center;justify-content:center;padding:18px}#hipaa-tracking-consent.ht-bottom{left:16px;right:16px;bottom:16px;display:flex;justify-content:flex-start}.ht-consent-panel{width:min(520px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 22px 60px rgba(15,23,42,.22);padding:18px}.ht-bottom .ht-consent-panel{width:min(460px,100%);padding:14px}.ht-consent-title{font-size:18px;font-weight:800;margin:0 0 8px}.ht-consent-text{line-height:1.45;color:#4b5563;margin:0 0 14px}.ht-consent-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ht-consent-actions button{border:1px solid #d1d5db;background:#fff;color:#111827;border-radius:8px;padding:9px 11px;font:inherit;font-weight:800;cursor:pointer}.ht-consent-actions [data-ht-accept],.ht-consent-actions [data-ht-save]{background:#111827;color:#fff;border-color:#111827}.ht-consent-check{display:flex;gap:8px;align-items:flex-start;margin:10px 0;font-weight:700}.ht-consent-check input{margin-top:3px}@media(max-width:640px){#hipaa-tracking-consent.ht-modal{align-items:flex-end;padding:0}.ht-modal .ht-consent-panel{border-radius:8px 8px 0 0;min-height:50vh}.ht-bottom{left:0!important;right:0!important;bottom:0!important}.ht-bottom .ht-consent-panel{width:100%;border-radius:8px 8px 0 0}}'
+    style.textContent = '#hipaa-tracking-consent{position:fixed;z-index:2147483647;font:14px ' + theme.fontFamily + ';color:' + theme.textColor + '}#hipaa-tracking-consent.ht-modal{inset:0;background:' + hexToRgba(theme.overlayColor, 0.38) + ';display:flex;align-items:center;justify-content:center;padding:18px}#hipaa-tracking-consent.ht-bottom{left:16px;right:16px;bottom:16px;display:flex;justify-content:flex-start}.ht-consent-panel{width:min(520px,100%);background:' + theme.panelBackgroundColor + ';border:1px solid ' + theme.borderColor + ';border-radius:' + theme.borderRadiusPx + 'px;box-shadow:0 22px 60px rgba(15,23,42,.22);padding:18px}.ht-bottom .ht-consent-panel{width:min(460px,100%);padding:14px}.ht-consent-title{font-size:18px;font-weight:800;margin:0 0 8px;color:' + theme.textColor + '}.ht-consent-text{line-height:1.45;color:' + theme.mutedTextColor + ';margin:0 0 14px}.ht-consent-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ht-consent-actions button{border:1px solid ' + theme.borderColor + ';background:' + theme.secondaryButtonBackgroundColor + ';color:' + theme.secondaryButtonTextColor + ';border-radius:' + theme.borderRadiusPx + 'px;padding:9px 11px;font:inherit;font-weight:800;cursor:pointer}.ht-consent-actions [data-ht-accept],.ht-consent-actions [data-ht-save]{background:' + theme.primaryButtonBackgroundColor + ';color:' + theme.primaryButtonTextColor + ';border-color:' + theme.primaryButtonBackgroundColor + '}.ht-consent-check{display:flex;gap:8px;align-items:flex-start;margin:10px 0;font-weight:700;color:' + theme.textColor + '}.ht-consent-check input{margin-top:3px}@media(max-width:640px){#hipaa-tracking-consent.ht-modal{align-items:flex-end;padding:0}.ht-modal .ht-consent-panel{border-radius:' + theme.borderRadiusPx + 'px ' + theme.borderRadiusPx + 'px 0 0;min-height:50vh}.ht-bottom{left:0!important;right:0!important;bottom:0!important}.ht-bottom .ht-consent-panel{width:100%;border-radius:' + theme.borderRadiusPx + 'px ' + theme.borderRadiusPx + 'px 0 0}}'
     document.head.appendChild(style)
+  }
+
+  function consentTheme() {
+    var theme = runtimeConfig && runtimeConfig.consent && runtimeConfig.consent.theme || {}
+    return {
+      fontFamily: safeFont(theme.fontFamily, 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'),
+      panelBackgroundColor: safeColor(theme.panelBackgroundColor, '#ffffff'),
+      textColor: safeColor(theme.textColor, '#111827'),
+      mutedTextColor: safeColor(theme.mutedTextColor, '#4b5563'),
+      primaryButtonBackgroundColor: safeColor(theme.primaryButtonBackgroundColor, '#111827'),
+      primaryButtonTextColor: safeColor(theme.primaryButtonTextColor, '#ffffff'),
+      secondaryButtonBackgroundColor: safeColor(theme.secondaryButtonBackgroundColor, '#ffffff'),
+      secondaryButtonTextColor: safeColor(theme.secondaryButtonTextColor, '#111827'),
+      borderColor: safeColor(theme.borderColor, '#e5e7eb'),
+      overlayColor: safeColor(theme.overlayColor, '#0f172a'),
+      borderRadiusPx: safeRadius(theme.borderRadiusPx, 8)
+    }
+  }
+
+  function safeColor(value, fallback) {
+    value = String(value || '').trim()
+    return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback
+  }
+
+  function safeFont(value, fallback) {
+    value = String(value || '').trim().slice(0, 180)
+    return /^[a-zA-Z0-9\\s"',.-]+$/.test(value) ? value : fallback
+  }
+
+  function safeRadius(value, fallback) {
+    var numeric = Number(value)
+    return Number.isFinite(numeric) ? Math.min(Math.max(Math.round(numeric), 0), 24) : fallback
+  }
+
+  function hexToRgba(hex, opacity) {
+    var normalized = safeColor(hex, '#0f172a')
+    var red = parseInt(normalized.slice(1, 3), 16)
+    var green = parseInt(normalized.slice(3, 5), 16)
+    var blue = parseInt(normalized.slice(5, 7), 16)
+    return 'rgba(' + red + ',' + green + ',' + blue + ',' + opacity + ')'
   }
 
   function showConsentBanner() {

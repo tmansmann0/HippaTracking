@@ -126,6 +126,10 @@ directly. Presets are managed in the dashboard:
 The collector automatically denies optional tracking when it sees Global Privacy
 Control or Do Not Track. It also serves `/.well-known/gpc.json`.
 
+The dashboard also includes consent banner styling controls for font family,
+panel/background colors, button colors, border color, overlay color, and corner
+radius. The preview uses the same theme variables sent to `/pixel.js`.
+
 For regional consent mode, pass a state/region code if your site already has
 reliable geo:
 

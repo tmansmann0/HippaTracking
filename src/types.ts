@@ -52,6 +52,21 @@ export type ConsentSettings = {
   preset: ConsentPreset
   respectOptOutSignals: boolean
   requiredRegionCodes: string[]
+  theme: ConsentTheme
+}
+
+export type ConsentTheme = {
+  fontFamily: string
+  panelBackgroundColor: string
+  textColor: string
+  mutedTextColor: string
+  primaryButtonBackgroundColor: string
+  primaryButtonTextColor: string
+  secondaryButtonBackgroundColor: string
+  secondaryButtonTextColor: string
+  borderColor: string
+  overlayColor: string
+  borderRadiusPx: number
 }
 
 export type IncomingRelayEvent = {

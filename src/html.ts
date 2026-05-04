@@ -40,6 +40,20 @@ export function layout(title: string, body: string) {
       .danger strong, .danger h2 { color:#991b1b; }
       .inline-check { display:flex; align-items:flex-start; gap:8px; font-weight:700; }
       .inline-check input { width:auto; margin-top:4px; }
+      .theme-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:10px; }
+      .theme-grid label { margin:0; }
+      .theme-grid input[type="color"] { height:42px; padding:4px; }
+      .preview-stack { display:grid; gap:12px; margin-top:14px; }
+      .consent-preview { border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; background:#f8fafc; min-height:160px; position:relative; }
+      .consent-preview.modal { display:grid; place-items:center; background:color-mix(in srgb, var(--ht-overlay), transparent 62%); padding:16px; }
+      .consent-preview.bottom { display:flex; align-items:flex-end; justify-content:flex-start; padding:16px; min-height:130px; }
+      .consent-preview .panel { width:min(460px, 100%); background:var(--ht-panel); color:var(--ht-text); border:1px solid var(--ht-border); border-radius:calc(var(--ht-radius) * 1px); box-shadow:0 14px 34px rgba(15,23,42,.16); padding:16px; font-family:var(--ht-font); }
+      .consent-preview h3 { margin:0 0 8px; color:var(--ht-text); font-size:18px; }
+      .consent-preview p { margin:0 0 12px; color:var(--ht-muted); }
+      .preview-actions { display:flex; gap:8px; flex-wrap:wrap; }
+      .preview-actions span { display:inline-flex; border-radius:8px; border:1px solid var(--ht-border); padding:8px 10px; font-weight:800; }
+      .preview-actions .primary { background:var(--ht-primary); color:var(--ht-primary-text); border-color:var(--ht-primary); }
+      .preview-actions .secondary { background:var(--ht-secondary); color:var(--ht-secondary-text); }
       pre { background:#0b1020; color:#d1e7ff; padding:14px; border-radius:8px; overflow:auto; }
       code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
       @media (max-width: 820px) { .grid, .stats { grid-template-columns: 1fr; } .top { align-items:flex-start; flex-direction:column; } }
@@ -201,16 +215,40 @@ export function dashboardPage(input: {
           </label>
           <label class="inline-check"><input type="checkbox" name="respectOptOutSignals" value="on"${input.settings.consent.respectOptOutSignals ? ' checked' : ''}> Automatically deny tracking when GPC or Do Not Track opt-out signals are present</label>
           <label>Regions requiring explicit consent <textarea name="requiredRegionCodes">${escapeHtml(input.settings.consent.requiredRegionCodes.join('\n'))}</textarea></label>
+          <h3>Banner style</h3>
+          <label>Font family <input name="themeFontFamily" data-consent-theme-input="font" value="${escapeHtml(input.settings.consent.theme.fontFamily)}"></label>
+          <div class="theme-grid">
+            ${colorInput('themePanelBackgroundColor', 'Panel', input.settings.consent.theme.panelBackgroundColor, 'panel')}
+            ${colorInput('themeTextColor', 'Text', input.settings.consent.theme.textColor, 'text')}
+            ${colorInput('themeMutedTextColor', 'Muted text', input.settings.consent.theme.mutedTextColor, 'muted')}
+            ${colorInput('themeBorderColor', 'Border', input.settings.consent.theme.borderColor, 'border')}
+            ${colorInput('themePrimaryButtonBackgroundColor', 'Primary button', input.settings.consent.theme.primaryButtonBackgroundColor, 'primary')}
+            ${colorInput('themePrimaryButtonTextColor', 'Primary text', input.settings.consent.theme.primaryButtonTextColor, 'primaryText')}
+            ${colorInput('themeSecondaryButtonBackgroundColor', 'Secondary button', input.settings.consent.theme.secondaryButtonBackgroundColor, 'secondary')}
+            ${colorInput('themeSecondaryButtonTextColor', 'Secondary text', input.settings.consent.theme.secondaryButtonTextColor, 'secondaryText')}
+            ${colorInput('themeOverlayColor', 'Overlay', input.settings.consent.theme.overlayColor, 'overlay')}
+            <label>Radius <input type="number" min="0" max="24" name="themeBorderRadiusPx" data-consent-theme-input="radius" value="${escapeHtml(input.settings.consent.theme.borderRadiusPx)}"></label>
+          </div>
           <p><button type="submit">Save consent settings</button></p>
         </form>
         <p class="muted">Region detection uses <code>data-region-code</code> on the pixel script, <code>?regionCode=</code>, or common edge headers. Unknown regions use the selected preset default.</p>
       </article>
 
       <article class="card">
+        <h2>Consent banner preview</h2>
+        <div id="consent-theme-preview" class="preview-stack" style="${consentThemeVars(input.settings.consent.theme)}">
+          ${consentPreview('modal', 'Accept or more options', ['Accept', 'More options'])}
+          ${consentPreview('modal', 'Accept, manage, deny', ['Accept', 'Manage preferences', 'Deny'])}
+          ${consentPreview('bottom', 'Bottom notice', ['Privacy settings', 'Close'])}
+        </div>
+      </article>
+
+      <article class="card">
         <h2>Destination readiness</h2>
         <pre>${escapeHtml(JSON.stringify(input.destinations, null, 2))}</pre>
       </article>
-    </section>`,
+    </section>
+    ${consentThemePreviewScript()}`,
   )
 }
 
@@ -328,4 +366,67 @@ export function escapeHtml(value: unknown) {
 
 function featureCheckbox(name: string, label: string, checked: boolean) {
   return `<label><input type="checkbox" name="${escapeHtml(name)}" value="on"${checked ? ' checked' : ''}> ${escapeHtml(label)}</label>`
+}
+
+function colorInput(name: string, label: string, value: string, key: string) {
+  return `<label>${escapeHtml(label)} <input type="color" name="${escapeHtml(name)}" data-consent-theme-input="${escapeHtml(key)}" value="${escapeHtml(value)}"></label>`
+}
+
+function consentThemeVars(theme: AppSettings['consent']['theme']) {
+  return [
+    `--ht-font:${theme.fontFamily}`,
+    `--ht-panel:${theme.panelBackgroundColor}`,
+    `--ht-text:${theme.textColor}`,
+    `--ht-muted:${theme.mutedTextColor}`,
+    `--ht-primary:${theme.primaryButtonBackgroundColor}`,
+    `--ht-primary-text:${theme.primaryButtonTextColor}`,
+    `--ht-secondary:${theme.secondaryButtonBackgroundColor}`,
+    `--ht-secondary-text:${theme.secondaryButtonTextColor}`,
+    `--ht-border:${theme.borderColor}`,
+    `--ht-overlay:${theme.overlayColor}`,
+    `--ht-radius:${theme.borderRadiusPx}`,
+  ]
+    .map(escapeHtml)
+    .join(';')
+}
+
+function consentPreview(kind: 'modal' | 'bottom', title: string, actions: string[]) {
+  return `<div class="consent-preview ${kind}">
+    <div class="panel">
+      <h3>${escapeHtml(title)}</h3>
+      <p>We use a privacy-preserving relay for analytics and conversion measurement.</p>
+      <div class="preview-actions">
+        ${actions.map((action, index) => `<span class="${index === 0 ? 'primary' : 'secondary'}">${escapeHtml(action)}</span>`).join('')}
+      </div>
+    </div>
+  </div>`
+}
+
+function consentThemePreviewScript() {
+  return `<script>
+    ;(function () {
+      var preview = document.getElementById('consent-theme-preview')
+      if (!preview) return
+      var map = {
+        font: '--ht-font',
+        panel: '--ht-panel',
+        text: '--ht-text',
+        muted: '--ht-muted',
+        primary: '--ht-primary',
+        primaryText: '--ht-primary-text',
+        secondary: '--ht-secondary',
+        secondaryText: '--ht-secondary-text',
+        border: '--ht-border',
+        overlay: '--ht-overlay',
+        radius: '--ht-radius'
+      }
+      document.querySelectorAll('[data-consent-theme-input]').forEach(function (input) {
+        input.addEventListener('input', function () {
+          var prop = map[input.getAttribute('data-consent-theme-input')]
+          if (!prop) return
+          preview.style.setProperty(prop, input.value)
+        })
+      })
+    })()
+  </script>`
 }

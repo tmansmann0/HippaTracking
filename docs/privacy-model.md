@@ -87,6 +87,10 @@ the `/client-config` request.
 The auto-consent preset grants analytics and conversion measurement only. It
 does not silently grant session recording.
 
+Consent banner styling is configurable in the admin dashboard. Theme values are
+normalized server-side before storage and validated again by the browser pixel
+before being inserted into banner CSS.
+
 ## Audiences
 
 Audience builder is intentionally buried under advanced risk settings and starts

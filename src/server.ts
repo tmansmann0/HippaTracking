@@ -214,6 +214,23 @@ app.post('/settings/consent', async (request, response) => {
       preset: consentPresetFromForm(request.body.consentPreset),
       respectOptOutSignals: request.body.respectOptOutSignals === 'on',
       requiredRegionCodes: parseRegionCodes(stringField(request.body.requiredRegionCodes)),
+      theme: {
+        fontFamily: stringField(request.body.themeFontFamily),
+        panelBackgroundColor: stringField(request.body.themePanelBackgroundColor),
+        textColor: stringField(request.body.themeTextColor),
+        mutedTextColor: stringField(request.body.themeMutedTextColor),
+        primaryButtonBackgroundColor: stringField(
+          request.body.themePrimaryButtonBackgroundColor,
+        ),
+        primaryButtonTextColor: stringField(request.body.themePrimaryButtonTextColor),
+        secondaryButtonBackgroundColor: stringField(
+          request.body.themeSecondaryButtonBackgroundColor,
+        ),
+        secondaryButtonTextColor: stringField(request.body.themeSecondaryButtonTextColor),
+        borderColor: stringField(request.body.themeBorderColor),
+        overlayColor: stringField(request.body.themeOverlayColor),
+        borderRadiusPx: Number(request.body.themeBorderRadiusPx),
+      },
     },
   })
   response.redirect('/dashboard')
