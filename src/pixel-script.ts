@@ -65,16 +65,6 @@ export function createPixelScript(config: RelayConfig) {
     }
   }
 
-  function fbcFromLocation() {
-    try {
-      var params = new URLSearchParams(window.location.search)
-      var fbclid = params.get('fbclid')
-      return fbclid ? 'fb.1.' + Date.now() + '.' + fbclid : undefined
-    } catch (_error) {
-      return undefined
-    }
-  }
-
   function postJson(url, body) {
     var json = JSON.stringify(body)
 
@@ -102,9 +92,6 @@ export function createPixelScript(config: RelayConfig) {
       title: document.title,
       referrer: document.referrer,
       clientId: getClientId(),
-      fbp: getCookie('_fbp'),
-      fbc: getCookie('_fbc') || fbcFromLocation(),
-      userAgent: window.navigator.userAgent,
       consent: data.consent || consent,
       customData: data.customData || data,
       timestamp: Date.now()

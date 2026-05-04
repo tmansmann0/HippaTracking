@@ -33,8 +33,8 @@ destinations.
 - Guided first-run setup with admin email, password, recovery key, feature
   selection, collection policy, and installation snippet.
 - Defaults to `PRIVACY_MODE=strict`.
-- Supports an optional `attribution` mode that forwards `_fbp`, `_fbc`, and user
-  agent only when consent is granted and the page is not sensitive.
+- Downstream identity uses keyed hashes. The relay does not forward raw browser
+  ad IDs, user agent, IP, email, phone, or raw client IDs to Meta or GA4.
 - Includes a Fly.io deployment path and Dockerfile. Railway config is retained
   for demos or non-ePHI deployments.
 
@@ -160,7 +160,7 @@ Privacy policy:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PRIVACY_MODE` | `strict` | `strict` or `attribution`. |
+| `PRIVACY_MODE` | `strict` | `strict` or `attribution`; both use hashed downstream identity only. |
 | `SENSITIVE_PATH_PATTERNS` | medspa defaults | Comma-separated route/title/referrer fragments to redact. |
 | `ALLOWED_CUSTOM_DATA_KEYS` | `value,currency` | Only these event custom-data keys can be forwarded. |
 
@@ -263,8 +263,8 @@ so this last step has to happen once in your Railway workspace.
 - Recording chunks and consent payloads are encrypted before database storage.
 - Audience membership stores HMAC-pseudonymous client keys rather than raw
   browser client IDs.
-- This relay intentionally prioritizes privacy and minimum viable attribution
-  over maximum ad-platform match quality.
+- This relay intentionally prioritizes privacy and hashed minimum viable
+  attribution over maximum ad-platform match quality.
 
 See `docs/references.md` for the official docs used while shaping the first
 implementation.

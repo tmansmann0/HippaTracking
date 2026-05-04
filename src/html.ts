@@ -98,7 +98,7 @@ export function setupPage(generatedRecoveryKey: string | null = null) {
             <label>Privacy mode
               <select name="privacyMode">
                 <option value="strict">Strict</option>
-                <option value="attribution">Attribution with consent</option>
+                <option value="attribution">Attribution with hashed identity</option>
               </select>
             </label>
           </div>
@@ -182,7 +182,7 @@ export function dashboardPage(input: {
           <label>Privacy mode
             <select name="privacyMode">
               <option value="strict"${input.settings.privacyMode === 'strict' ? ' selected' : ''}>Strict</option>
-              <option value="attribution"${input.settings.privacyMode === 'attribution' ? ' selected' : ''}>Attribution with consent</option>
+              <option value="attribution"${input.settings.privacyMode === 'attribution' ? ' selected' : ''}>Attribution with hashed identity</option>
             </select>
           </label>
           <button type="submit">Save policy</button>

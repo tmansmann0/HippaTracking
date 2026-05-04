@@ -10,11 +10,13 @@ export async function evaluateAudiences(
   const rules = await store.listAudienceRules()
   const matches = rules.filter((rule) => ruleMatches(rule, event))
 
-  await Promise.all(
-    matches.map((rule) => store.addAudienceMember(rule.id, event.clientId ?? event.eventId)),
-  )
+  await Promise.all(matches.map((rule) => store.addAudienceMember(rule.id, audienceSourceId(event))))
 
   return matches
+}
+
+function audienceSourceId(event: SanitizedRelayEvent) {
+  return event.clientId ?? event.eventId
 }
 
 function ruleMatches(rule: AudienceRule, event: SanitizedRelayEvent) {

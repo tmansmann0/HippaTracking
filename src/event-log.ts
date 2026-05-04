@@ -1,6 +1,7 @@
 import { mkdir, appendFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { CollectResponse, RelayConfig, SanitizedRelayEvent } from './types.js'
+import { hashedEventUserKey } from './hashed-identity.js'
 
 export async function writeSanitizedEventLog(
   config: RelayConfig,
@@ -16,7 +17,7 @@ export async function writeSanitizedEventLog(
     config.eventLogPath,
     `${JSON.stringify({
       receivedAt: new Date().toISOString(),
-      event,
+      event: eventForLog(config, event),
       destinations: response.destinations.map((destination) => ({
         destination: destination.destination,
         skipped: destination.skipped,
@@ -26,4 +27,13 @@ export async function writeSanitizedEventLog(
       })),
     })}\n`,
   )
+}
+
+function eventForLog(config: RelayConfig, event: SanitizedRelayEvent) {
+  return {
+    ...event,
+    ...(event.clientId
+      ? { clientId: hashedEventUserKey(config.appSecret, 'event-log', event) }
+      : {}),
+  }
 }

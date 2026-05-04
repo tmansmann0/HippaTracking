@@ -128,7 +128,9 @@ https://<APP_NAME>.fly.dev/setup
 Before enabling session recording or audience building for real patient traffic:
 
 - Confirm the BAA is signed and covers app compute plus the database.
-- Keep `PRIVACY_MODE=strict` until counsel approves attribution mode.
+- Keep `PRIVACY_MODE=strict` until counsel approves attribution mode. Even in
+  attribution mode, Meta and GA4 receive keyed-hash identity rather than raw
+  browser IDs.
 - Keep `auto_stop_machines="off"` and `min_machines_running=1`.
 - Use a custom domain with HTTPS before installing the pixel broadly.
 - Restrict `ALLOWED_ORIGINS` to exact production origins.
@@ -136,4 +138,3 @@ Before enabling session recording or audience building for real patient traffic:
   place.
 - Treat session recording chunks as ePHI even with masking enabled.
 - Add the remaining HIPAA controls tracked in `docs/hipaa-evaluation.md`.
-

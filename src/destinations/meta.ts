@@ -1,4 +1,5 @@
 import type { DestinationResult, RelayConfig, SanitizedRelayEvent } from '../types.js'
+import { hashedEventUserKey } from '../hashed-identity.js'
 
 type MetaEvent = {
   event_name: string
@@ -17,7 +18,7 @@ export function buildMetaPayload(event: SanitizedRelayEvent, config: RelayConfig
     event_id: event.eventId,
     action_source: 'website',
     event_source_url: event.safeUrl,
-    user_data: buildMetaUserData(event),
+    user_data: buildMetaUserData(event, config),
     ...(Object.keys(event.customData).length ? { custom_data: event.customData } : {}),
   }
 
@@ -59,14 +60,10 @@ export async function sendToMeta(
   }
 }
 
-function buildMetaUserData(event: SanitizedRelayEvent) {
-  const userData: Record<string, string> = {}
-
-  if (event.fbp) userData.fbp = event.fbp
-  if (event.fbc) userData.fbc = event.fbc
-  if (event.userAgent) userData.client_user_agent = event.userAgent
-
-  return userData
+function buildMetaUserData(event: SanitizedRelayEvent, config: RelayConfig) {
+  return {
+    external_id: hashedEventUserKey(config.appSecret, 'meta-external', event),
+  }
 }
 
 function skipped(message: string): DestinationResult {

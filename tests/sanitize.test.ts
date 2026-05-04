@@ -36,7 +36,7 @@ describe('sanitizeIncomingEvent', () => {
     expect(sanitized.droppedFields).toContain('referrer')
   })
 
-  it('can retain browser ad IDs only for consented non-sensitive attribution mode events', () => {
+  it('drops browser ad IDs and user agent even in attribution mode', () => {
     const config = loadConfig({ PRIVACY_MODE: 'attribution' })
     const sanitized = sanitizeIncomingEvent(
       {
@@ -50,8 +50,9 @@ describe('sanitizeIncomingEvent', () => {
 
     expect(sanitized.sensitiveContext).toBe(false)
     expect(sanitized.safeUrl).toBe('https://clinic.example/thank-you')
-    expect(sanitized.fbp).toBe('fb.1.111.222')
-    expect(sanitized.fbc).toBe('fb.1.111.click')
-    expect(sanitized.userAgent).toBe('Example Browser')
+    expect(sanitized.fbp).toBeUndefined()
+    expect(sanitized.fbc).toBeUndefined()
+    expect(sanitized.userAgent).toBeUndefined()
+    expect(sanitized.droppedFields).toEqual(expect.arrayContaining(['fbp', 'fbc', 'user_agent']))
   })
 })

@@ -31,20 +31,19 @@ payloads.
 
 ## Strict Mode
 
-`PRIVACY_MODE=strict` drops browser ad IDs and user agent from Meta payloads.
-GA4 still receives a first-party relay client ID because Measurement Protocol
-requires a client identifier.
+`PRIVACY_MODE=strict` drops browser ad IDs and user agent. Meta receives only a
+keyed-hash `external_id` in `user_data`. GA4 receives a keyed-hash `client_id`
+and `user_id` because Measurement Protocol requires a client identifier.
 
 ## Attribution Mode
 
-`PRIVACY_MODE=attribution` may forward `_fbp`, `_fbc`, and user agent only when:
+`PRIVACY_MODE=attribution` no longer forwards `_fbp`, `_fbc`, or user agent.
+Those fields are intentionally not collected by the browser pixel. Attribution
+is limited to keyed-hash identity plus non-PHI event metadata.
 
-- the event has `consent: "granted"`;
-- the route is not sensitive;
-- Meta forwarding is enabled.
-
-It still does not forward email, phone, IP address, raw URL query strings, page
-titles, or referrers.
+The relay does not forward email, phone, IP address, raw URL query strings, page
+titles, referrers, raw browser client IDs, raw Meta browser IDs, or raw user
+agent strings.
 
 ## Session Recording
 

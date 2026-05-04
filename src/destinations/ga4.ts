@@ -1,10 +1,17 @@
 import type { DestinationResult, RelayConfig, SanitizedRelayEvent } from '../types.js'
+import { hashedEventUserKey } from '../hashed-identity.js'
 
-export function buildGa4Payload(event: SanitizedRelayEvent) {
+export function buildGa4Payload(event: SanitizedRelayEvent, config: RelayConfig) {
+  const userKey = hashedEventUserKey(config.appSecret, 'ga4-client', event)
+
   return {
-    client_id: event.clientId,
-    non_personalized_ads: true,
+    client_id: userKey,
+    user_id: userKey,
     timestamp_micros: event.eventTime * 1_000_000,
+    consent: {
+      ad_user_data: 'DENIED',
+      ad_personalization: 'DENIED',
+    },
     events: [
       {
         name: toGa4EventName(event.eventName),
@@ -31,7 +38,7 @@ export async function sendToGa4(
     return skipped('GA4 forwarding enabled, but GA4_MEASUREMENT_ID or GA4_API_SECRET is missing.')
   }
 
-  const requestBody = buildGa4Payload(event)
+  const requestBody = buildGa4Payload(event, config)
   const base =
     config.ga4.endpointRegion === 'eu'
       ? 'https://region1.google-analytics.com/mp/collect'

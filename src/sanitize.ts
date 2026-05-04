@@ -27,16 +27,13 @@ export function sanitizeIncomingEvent(
     'ip_address',
     'email',
     'phone',
+    'fbp',
+    'fbc',
+    'user_agent',
   ]
   const safeUrl = buildSafeUrl(parsedUrl, sensitiveContext)
   const consent = incoming.consent ?? 'unknown'
-  const canForwardBrowserIds =
-    config.privacyMode === 'attribution' && consent === 'granted' && !sensitiveContext
   const clientId = incoming.clientId ?? stableFallbackClientId(incoming)
-
-  if (!canForwardBrowserIds) {
-    droppedFields.push('fbp', 'fbc', 'user_agent')
-  }
 
   return {
     siteId: incoming.siteId,
@@ -49,9 +46,6 @@ export function sanitizeIncomingEvent(
     detectedSignals,
     consent,
     clientId,
-    ...(canForwardBrowserIds && incoming.fbp ? { fbp: incoming.fbp } : {}),
-    ...(canForwardBrowserIds && incoming.fbc ? { fbc: incoming.fbc } : {}),
-    ...(canForwardBrowserIds && incoming.userAgent ? { userAgent: incoming.userAgent } : {}),
     customData: sanitizeCustomData(incoming.customData, config.allowedCustomDataKeys),
     droppedFields,
   }
