@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>HippaTracking install example</title>
+    <script
+      async
+      src="http://localhost:3000/pixel.js"
+      data-site-id="default"
+      data-consent="unknown"
+    ></script>
+  </head>
+  <body>
+    <button id="lead">Track Lead</button>
+    <script>
+      document.getElementById('lead').addEventListener('click', function () {
+        window.hippaTracking.track('Lead', {
+          customData: {
+            value: 125,
+            currency: 'USD'
+          }
+        })
+      })
+    </script>
+  </body>
+</html>
