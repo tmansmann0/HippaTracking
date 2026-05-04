@@ -2,6 +2,12 @@
 
 ## From GitHub
 
+Do not use Railway for production ePHI unless your Railway account/project has
+an executed HIPAA BAA covering the deployed service and Postgres database. HHS
+cloud guidance treats a cloud provider that stores or processes ePHI as a
+business associate even if the data is encrypted and the provider does not hold
+the key.
+
 1. Push this repository to GitHub.
 2. Open Railway.
 3. Click **New Project**.

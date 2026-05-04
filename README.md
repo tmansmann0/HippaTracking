@@ -243,6 +243,8 @@ so this last step has to happen once in your Railway workspace.
 See `docs/references.md` for the official docs used while shaping the first
 implementation.
 
+See `docs/hipaa-evaluation.md` for the current HIPAA gap review.
+
 Third-party notices are in `THIRD_PARTY_NOTICES.md`.
 
 ## License
