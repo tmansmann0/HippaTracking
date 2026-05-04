@@ -23,6 +23,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): RelayConfig {
   return {
     port: Number(env.PORT ?? 3000),
     publicBaseUrl: optional(env.PUBLIC_BASE_URL) ?? `http://localhost:${env.PORT ?? 3000}`,
+    appSecret: optional(env.APP_SECRET) ?? 'dev-secret-change-me',
+    encryptionKey: optional(env.APP_ENCRYPTION_KEY) ?? 'dev-encryption-key-change-me',
+    ...(optional(env.DATABASE_URL) ? { databaseUrl: optional(env.DATABASE_URL) } : {}),
     siteId: optional(env.RELAY_SITE_ID) ?? 'default',
     allowedOrigins: csv(env.ALLOWED_ORIGINS),
     privacyMode,

@@ -45,3 +45,27 @@ requires a client identifier.
 
 It still does not forward email, phone, IP address, raw URL query strings, page
 titles, or referrers.
+
+## Session Recording
+
+Session recording is off by default. When enabled, the installed pixel loads
+rrweb from the relay host only after runtime configuration says recording is
+enabled and consent is granted. The recorder uses:
+
+- `maskAllInputs: true`;
+- `maskTextSelector` for inputs, textareas, selects, contenteditable nodes, and
+  anything marked `data-ht-mask`;
+- `blockClass: "ht-block"` for regions that should not be serialized;
+- batched uploads to reduce network overhead.
+
+Recording chunks are encrypted with AES-256-GCM before database storage.
+
+## Consent Events
+
+Consent events are stored as encrypted payloads. They are not forwarded to ad
+platforms.
+
+## Audiences
+
+Audience rules evaluate sanitized relay events. Audience members are keyed with
+an HMAC of the browser client ID, not the raw client ID.

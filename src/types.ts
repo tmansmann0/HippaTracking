@@ -5,6 +5,9 @@ export type DestinationName = 'meta' | 'ga4'
 export type RelayConfig = {
   port: number
   publicBaseUrl: string
+  appSecret: string
+  encryptionKey: string
+  databaseUrl?: string | undefined
   siteId: string
   allowedOrigins: string[]
   privacyMode: PrivacyMode
@@ -79,4 +82,70 @@ export type CollectResponse = {
   detectedSignals: string[]
   droppedFields: string[]
   destinations: DestinationResult[]
+}
+
+export type FeatureFlags = {
+  metaTracking: boolean
+  googleAnalytics: boolean
+  sessionRecording: boolean
+  consentManager: boolean
+  audienceBuilder: boolean
+}
+
+export type AppSettings = {
+  siteId: string
+  allowedOrigins: string[]
+  privacyMode: PrivacyMode
+  sensitivePathPatterns: string[]
+  allowedCustomDataKeys: string[]
+  features: FeatureFlags
+}
+
+export type AdminUser = {
+  id: string
+  email: string
+  passwordHash: string
+  recoveryKeyHash: string
+  createdAt: string
+}
+
+export type ConsentEvent = {
+  siteId: string
+  clientId: string
+  consent: ConsentState
+  categories: Record<string, boolean>
+  url?: string | undefined
+  timestamp: number
+}
+
+export type RecordingChunk = {
+  siteId: string
+  sessionId: string
+  clientId: string
+  url: string
+  events: unknown[]
+  timestamp: number
+}
+
+export type AudienceRule = {
+  id: string
+  name: string
+  eventName?: string | undefined
+  urlContains?: string | undefined
+  minValue?: number | undefined
+  createdAt: string
+}
+
+export type AudienceInput = {
+  name: string
+  eventName?: string | undefined
+  urlContains?: string | undefined
+  minValue?: number | undefined
+}
+
+export type DashboardStats = {
+  consentEvents: number
+  recordingChunks: number
+  audienceRules: number
+  audienceMembers: number
 }

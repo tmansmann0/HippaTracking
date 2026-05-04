@@ -7,13 +7,18 @@
 3. Click **New Project**.
 4. Select **Deploy from GitHub repo**.
 5. Choose this repository.
-6. Add variables:
+6. Add a Postgres service.
+7. Add variables:
+   - `DATABASE_URL`
+   - `APP_SECRET`
+   - `APP_ENCRYPTION_KEY`
    - `PUBLIC_BASE_URL`
    - `ALLOWED_ORIGINS`
    - `RELAY_SITE_ID`
    - `PRIVACY_MODE`
-7. Add Meta and GA4 variables if those destinations should be active.
-8. Deploy.
+8. Add Meta and GA4 variables if those destinations should be active.
+9. Deploy.
+10. Open `/setup` on the deployed service.
 
 Railway reads `railway.json` and uses:
 
@@ -46,6 +51,9 @@ Template variable suggestions:
 
 | Name | Required | Notes |
 | --- | --- | --- |
+| `DATABASE_URL` | Yes | Postgres connection string. |
+| `APP_SECRET` | Yes | Generate with `openssl rand -base64 32`. |
+| `APP_ENCRYPTION_KEY` | Yes | Generate with `openssl rand -base64 32`. |
 | `PUBLIC_BASE_URL` | Yes | Railway app URL after deploy. |
 | `ALLOWED_ORIGINS` | Yes | Site origins allowed to use the pixel. |
 | `RELAY_SITE_ID` | Yes | Public ID in the pixel snippet. |
@@ -56,3 +64,8 @@ Template variable suggestions:
 | `GA4_ENABLED` | No | Set `true` after adding GA4 credentials. |
 | `GA4_MEASUREMENT_ID` | No | Required only if GA4 is enabled. |
 | `GA4_API_SECRET` | No | Required only if GA4 is enabled. |
+
+## Volumes
+
+Postgres is the primary durable store. A Railway volume is not required unless
+you also set `EVENT_LOG_PATH` for a local JSONL audit log.

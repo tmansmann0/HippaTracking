@@ -25,6 +25,12 @@ destinations.
 - Redacts sensitive routes such as treatment or condition pages.
 - Sends sanitized events to Meta Conversions API.
 - Sends sanitized events to GA4 Measurement Protocol.
+- Optional consent manager with server-side consent event logging.
+- Optional MIT-licensed rrweb session recording with input masking and encrypted
+  chunks.
+- Optional audience builder that evaluates sanitized conversion events server-side.
+- Guided first-run setup with admin email, password, recovery key, feature
+  selection, collection policy, and installation snippet.
 - Defaults to `PRIVACY_MODE=strict`.
 - Supports an optional `attribution` mode that forwards `_fbp`, `_fbc`, and user
   agent only when consent is granted and the page is not sensitive.
@@ -119,9 +125,13 @@ npm run dev
 Open:
 
 ```text
-http://localhost:3000/healthz
+http://localhost:3000/setup
 http://localhost:3000/pixel.js
+http://localhost:3000/healthz
 ```
+
+If `DATABASE_URL` is not set, local development uses an in-memory store. For
+production, use Postgres.
 
 Run checks:
 
@@ -138,6 +148,9 @@ Required for basic hosting:
 | Variable | Purpose |
 | --- | --- |
 | `PUBLIC_BASE_URL` | Public relay URL, for example `https://relay.example.com`. |
+| `APP_SECRET` | Long random secret for admin-session signing and pseudonymous IDs. |
+| `APP_ENCRYPTION_KEY` | Long random secret used to derive the AES-256-GCM storage key. |
+| `DATABASE_URL` | Postgres connection string for production storage. |
 | `ALLOWED_ORIGINS` | Comma-separated website origins allowed to use the relay. |
 | `RELAY_SITE_ID` | Public site ID used by the browser pixel. |
 
@@ -178,16 +191,22 @@ Fast path:
 1. Push this repo to GitHub.
 2. In Railway, choose **New Project** -> **Deploy from GitHub repo**.
 3. Select this repo.
-4. Add the environment variables above.
-5. Deploy.
+4. Add a Postgres service and copy its `DATABASE_URL` into the relay service.
+5. Add `APP_SECRET`, `APP_ENCRYPTION_KEY`, `PUBLIC_BASE_URL`, and
+   `ALLOWED_ORIGINS`.
+6. Deploy.
+7. Open `/setup` on the deployed service and complete the guided setup.
 
 CLI path:
 
 ```bash
 railway init
+railway add --database postgres
 railway variables set PUBLIC_BASE_URL=https://YOUR-RAILWAY-DOMAIN
 railway variables set ALLOWED_ORIGINS=https://YOUR-WEBSITE
 railway variables set RELAY_SITE_ID=default
+railway variables set APP_SECRET=$(openssl rand -base64 32)
+railway variables set APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
 railway up
 ```
 
@@ -213,11 +232,18 @@ so this last step has to happen once in your Railway workspace.
 - GA4 Measurement Protocol sends events directly to Google Analytics over HTTPS.
 - GA4 Measurement Protocol is intended to supplement normal tagging, not replace
   all client-side collection.
+- Session recording uses rrweb under the MIT license and batches incremental DOM
+  events; it does not record video frames.
+- Recording chunks and consent payloads are encrypted before database storage.
+- Audience membership stores HMAC-pseudonymous client keys rather than raw
+  browser client IDs.
 - This relay intentionally prioritizes privacy and minimum viable attribution
   over maximum ad-platform match quality.
 
 See `docs/references.md` for the official docs used while shaping the first
 implementation.
+
+Third-party notices are in `THIRD_PARTY_NOTICES.md`.
 
 ## License
 

@@ -16,3 +16,5 @@ Official documentation used for the initial relay implementation:
   <https://docs.railway.com/templates/create>
 - Railway deploy button docs:
   <https://docs.railway.com/guides/publish-and-share>
+- rrweb package metadata:
+  <https://www.npmjs.com/package/rrweb>
