@@ -194,7 +194,7 @@ app.get('/healthz', async (_request, response) => {
   const settings = await store.getSettings()
   response.json({
     ok: true,
-    service: 'hippatracking',
+    service: 'hipaa-tracking',
     privacyMode: settings.privacyMode,
     siteId: settings.siteId,
     setupComplete: await store.hasAdmin(),
@@ -346,7 +346,7 @@ app.use((_request, response) => {
 
 await store.init()
 app.listen(config.port, () => {
-  console.log(`HippaTracking relay listening on :${config.port}`)
+  console.log(`HIPAATracking relay listening on :${config.port}`)
 })
 
 function applyCors(settings: AppSettings, request: express.Request, response: express.Response) {

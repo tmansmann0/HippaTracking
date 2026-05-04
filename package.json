@@ -1,5 +1,5 @@
 {
-  "name": "hippatracking",
+  "name": "hipaa-tracking",
   "version": "0.1.0",
   "description": "Hostable privacy-first pixel relay for Meta Conversions API and GA4 Measurement Protocol.",
   "type": "module",

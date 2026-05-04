@@ -36,11 +36,11 @@ export function createPixelScript(config: RelayConfig) {
   }
 
   function getStoredConsent() {
-    return getCookie('hippatracking_consent')
+    return getCookie('hipaa_tracking_consent')
   }
 
   function getClientId() {
-    var key = 'hippatracking_client_id'
+    var key = 'hipaa_tracking_client_id'
     try {
       var existing = window.localStorage.getItem(key)
       if (existing) return existing
@@ -53,7 +53,7 @@ export function createPixelScript(config: RelayConfig) {
   }
 
   function getSessionId() {
-    var key = 'hippatracking_session_id'
+    var key = 'hipaa_tracking_session_id'
     try {
       var existing = window.sessionStorage.getItem(key)
       if (existing) return existing
@@ -115,7 +115,7 @@ export function createPixelScript(config: RelayConfig) {
 
   function sendConsent(nextConsent, categories) {
     consent = nextConsent
-    setCookie('hippatracking_consent', nextConsent, 180)
+    setCookie('hipaa_tracking_consent', nextConsent, 180)
     return postJson(baseUrl + '/consent', {
       siteId: siteId,
       clientId: getClientId(),
@@ -129,9 +129,9 @@ export function createPixelScript(config: RelayConfig) {
   }
 
   function showConsentBanner() {
-    if (getStoredConsent() || document.getElementById('hippatracking-consent')) return
+    if (getStoredConsent() || document.getElementById('hipaa-tracking-consent')) return
     var banner = document.createElement('div')
-    banner.id = 'hippatracking-consent'
+    banner.id = 'hipaa-tracking-consent'
     banner.style.cssText = 'position:fixed;z-index:2147483647;left:16px;right:16px;bottom:16px;background:#111827;color:#fff;border-radius:8px;padding:14px;box-shadow:0 16px 40px rgba(0,0,0,.25);font:14px system-ui,-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;display:flex;gap:12px;align-items:center;justify-content:space-between;'
     banner.innerHTML = '<span>We use privacy-preserving analytics to improve the site. Sensitive page details are redacted before leaving this site.</span><span style="white-space:nowrap"><button data-ht-deny style="margin-right:8px;border:1px solid #4b5563;background:transparent;color:#fff;border-radius:6px;padding:8px 10px;font:inherit">Decline</button><button data-ht-accept style="border:0;background:#2f6f73;color:#fff;border-radius:6px;padding:8px 10px;font:inherit;font-weight:700">Allow</button></span>'
     document.body.appendChild(banner)
@@ -178,8 +178,8 @@ export function createPixelScript(config: RelayConfig) {
 
   function startRecordingIfAllowed() {
     if (!runtimeConfig || !runtimeConfig.features.sessionRecording || consent !== 'granted') return
-    if (window.__hippaTrackingRecordingStarted) return
-    window.__hippaTrackingRecordingStarted = true
+    if (window.__hipaaTrackingRecordingStarted) return
+    window.__hipaaTrackingRecordingStarted = true
 
     loadScript(baseUrl + '/vendor/rrweb-record.min.js', function () {
       if (!window.rrweb || !window.rrweb.record) return
@@ -211,10 +211,10 @@ export function createPixelScript(config: RelayConfig) {
     startRecordingIfAllowed()
   }
 
-  window.hippaTracking = window.hippaTracking || {}
-  window.hippaTracking.track = send
-  window.hippaTracking.consent = sendConsent
-  window.hippaTracking.flushRecording = flushRecording
+  window.hipaaTracking = window.hipaaTracking || {}
+  window.hipaaTracking.track = send
+  window.hipaaTracking.consent = sendConsent
+  window.hipaaTracking.flushRecording = flushRecording
 
   window.fetch(configEndpoint, { credentials: 'omit' })
     .then(function (response) { return response.json() })

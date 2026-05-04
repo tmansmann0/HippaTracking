@@ -2,7 +2,7 @@
 
 ## rrweb
 
-HippaTracking uses rrweb for optional session recording.
+HIPAATracking uses rrweb for optional session recording.
 
 - Package: `rrweb`
 - License: MIT

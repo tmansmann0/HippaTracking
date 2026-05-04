@@ -1,13 +1,13 @@
-# HippaTracking
+# HIPAATracking
 
-HippaTracking is a hostable pixel relay for clinics and other sensitive-service
+HIPAATracking is a hostable pixel relay for clinics and other sensitive-service
 businesses that need conversion measurement without sending raw treatment-page
 context directly to ad platforms.
 
 The flow is:
 
 ```text
-website pixel -> HippaTracking relay -> sanitizer/policy layer -> Meta CAPI and/or GA4
+website pixel -> HIPAATracking relay -> sanitizer/policy layer -> Meta CAPI and/or GA4
 ```
 
 This is backend infrastructure, not a landing page. It serves a configurable
@@ -18,7 +18,7 @@ destinations.
 ## What It Does
 
 - Generates a drop-in browser pixel script.
-- Auto-tracks `PageView` and exposes `window.hippaTracking.track(...)`.
+- Auto-tracks `PageView` and exposes `window.hipaaTracking.track(...)`.
 - Receives events server-side through `POST /collect`.
 - Removes query strings, hashes, referrers, page titles, IPs, email, phone, and
   other direct identifiers from downstream payloads.
@@ -53,7 +53,7 @@ Track a conversion:
 
 ```html
 <script>
-  window.hippaTracking?.track('Lead', {
+  window.hipaaTracking?.track('Lead', {
     customData: {
       value: 125,
       currency: 'USD'
@@ -66,7 +66,7 @@ If you have a consent banner, update consent before tracking:
 
 ```html
 <script>
-  window.hippaTracking?.consent('granted')
+  window.hipaaTracking?.consent('granted')
 </script>
 ```
 
@@ -220,7 +220,7 @@ One-click template path:
 6. Replace the placeholder below:
 
 ```md
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/YOUR_TEMPLATE_CODE?utm_medium=integration&utm_source=template&utm_campaign=hippatracking)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/YOUR_TEMPLATE_CODE?utm_medium=integration&utm_source=template&utm_campaign=hipaa-tracking)
 ```
 
 Railway creates deploy buttons from Railway templates, not arbitrary GitHub repos,

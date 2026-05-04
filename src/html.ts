@@ -6,7 +6,7 @@ export function layout(title: string, body: string) {
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${escapeHtml(title)} · HippaTracking</title>
+    <title>${escapeHtml(title)} · HIPAATracking</title>
     <style>
       :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #111827; background: #f8fafc; }
       body { margin: 0; }
@@ -51,7 +51,7 @@ export function layout(title: string, body: string) {
 
 export function topNav() {
   return `<div class="top">
-    <a href="/dashboard" class="brand"><span class="mark">HT</span> HippaTracking</a>
+    <a href="/dashboard" class="brand"><span class="mark">HT</span> HIPAATracking</a>
     <nav class="nav">
       <a href="/dashboard">Dashboard</a>
       <a href="/docs/usage">Usage docs</a>
@@ -216,11 +216,11 @@ export function usageDocs(publicBaseUrl: string) {
       <h2>Install the pixel</h2>
       <pre>${escapeHtml(`<script async src="${publicBaseUrl}/pixel.js" data-site-id="default" data-consent="unknown"></script>`)}</pre>
       <h2>Track a conversion</h2>
-      <pre>${escapeHtml(`window.hippaTracking.track('Lead', {
+      <pre>${escapeHtml(`window.hipaaTracking.track('Lead', {
   customData: { value: 125, currency: 'USD' }
 })`)}</pre>
       <h2>Update consent</h2>
-      <pre>${escapeHtml(`window.hippaTracking.consent('granted')`)}</pre>
+      <pre>${escapeHtml(`window.hipaaTracking.consent('granted')`)}</pre>
       <p>Feature flags are server-controlled. You do not need to replace the installed pixel when session recording, consent management, audiences, Meta, or GA4 are toggled.</p>
     </section>`,
   )

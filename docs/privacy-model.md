@@ -1,6 +1,6 @@
 # Privacy Model
 
-HippaTracking's default mode is intentionally conservative.
+HIPAATracking's default mode is intentionally conservative.
 
 ## Always Dropped Downstream
 
